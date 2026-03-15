@@ -3,6 +3,13 @@
  * 管理 Live2D 虚拟形象的表情状态和过渡
  */
 
+// Node.js 环境 polyfill
+declare const requestAnimationFrame: (callback: (time: number) => void) => number;
+if (typeof (global as any).requestAnimationFrame === 'undefined') {
+  (global as any).requestAnimationFrame = (callback: (time: number) => void) =>
+    setTimeout(() => callback(Date.now()), 16) as unknown as number;
+}
+
 import {
   ExpressionType,
   ExpressionParams,

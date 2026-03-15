@@ -10,9 +10,9 @@ import {
   AnimationType,
   Live2DModelConfig,
   EMOTION_TO_EXPRESSION,
-  LipSyncSequence,
   LipSyncVowel,
 } from '../entities/avatar.entity';
+import { LipSyncSequence } from './lipsync.engine';
 import { ExpressionController } from './expression.controller';
 import { LipSyncEngine } from './lipsync.engine';
 

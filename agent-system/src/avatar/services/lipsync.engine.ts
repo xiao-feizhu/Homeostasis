@@ -1,21 +1,18 @@
-
 /**
  * 口型同步引擎
  * 将文本/音频转换为 Live2D 口型动画
  */
 
-/**
- * 浏览器动画兼容层
- */
-type RAFCallback = () => void;
-
-const rAF = typeof (globalThis as any).requestAnimationFrame !== 'undefined'
-  ? (globalThis as any).requestAnimationFrame as (cb: RAFCallback) => number
-  : (callback: RAFCallback) => setTimeout(callback, 16);
-
-const cAF = typeof (globalThis as any).cancelAnimationFrame !== 'undefined'
-  ? (globalThis as any).cancelAnimationFrame as (id: number) => void
-  : clearTimeout;
+// Node.js 环境 polyfill
+declare const requestAnimationFrame: (callback: (time: number) => void) => number;
+declare const cancelAnimationFrame: (handle: number) => void;
+if (typeof (global as any).requestAnimationFrame === 'undefined') {
+  (global as any).requestAnimationFrame = (callback: (time: number) => void) =>
+    setTimeout(() => callback(Date.now()), 16) as unknown as number;
+}
+if (typeof (global as any).cancelAnimationFrame === 'undefined') {
+  (global as any).cancelAnimationFrame = (handle: number) => clearTimeout(handle as unknown as NodeJS.Timeout);
+}
 
 import {
   LipSyncVowel,
@@ -34,7 +31,7 @@ interface LipSyncTimestamp {
 }
 
 /** 口型序列 */
-interface LipSyncSequence {
+export interface LipSyncSequence {
   duration: number;           // 总时长 (ms)
   timestamps: LipSyncTimestamp[];
 }
@@ -146,7 +143,7 @@ export class LipSyncEngine {
     this.isPlaying = false;
     this.avatarState.isTalking = false;
     if (this.animationFrameId !== null) {
-      cAF(this.animationFrameId);
+      cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
     // 重置口型到静音状态
@@ -160,7 +157,7 @@ export class LipSyncEngine {
     this.isPlaying = false;
     this.avatarState.isTalking = false;
     if (this.animationFrameId !== null) {
-      cAF(this.animationFrameId);
+      cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
   }
@@ -322,10 +319,10 @@ export class LipSyncEngine {
         this.onLipSyncUpdate?.(0, 0.5);
       }
 
-      this.animationFrameId = rAF(animate) as number;
+      this.animationFrameId = requestAnimationFrame(animate);
     };
 
-    this.animationFrameId = rAF(animate) as number;
+    this.animationFrameId = requestAnimationFrame(animate);
   }
 
   /**
