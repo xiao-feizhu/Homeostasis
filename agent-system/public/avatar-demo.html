@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D 虚拟形象演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* 虚拟形象区域 */
+        .avatar-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .avatar-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        #avatar-svg {
+            width: 300px;
+            height: 350px;
+            filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.2));
+        }
+
+        .avatar-status {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .avatar-status .expression-label {
+            font-size: 18px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .avatar-status .talking-indicator {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .avatar-status .talking-indicator.active {
+            display: inline-block;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* 控制面板 */
+        .control-section {
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .panel h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        /* 表情控制 */
+        .expression-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .expression-btn {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .expression-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .expression-btn.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .expression-btn .emoji {
+            font-size: 24px;
+        }
+
+        /* 对话区域 */
+        .chat-area {
+            margin-top: 16px;
+        }
+
+        .chat-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .btn-primary {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: #f5f5f5;
+            color: #666;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+
+        /* 情感指标 */
+        .emotion-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .metric-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .metric-label {
+            width: 80px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .metric-bar {
+            flex: 1;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .metric-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease, background-color 0.3s;
+        }
+
+        .metric-value {
+            width: 40px;
+            font-size: 13px;
+            color: #333;
+            text-align: right;
+        }
+
+        /* 快速测试 */
+        .quick-tests {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .quick-test-btn {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .quick-test-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* 状态日志 */
+        .status-log {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #999;
+            margin-right: 8px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .control-section {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎭 Live2D 虚拟形象演示</h1>
+        <p>情感系统 + 虚拟形象引擎 | 实时表情动画与口型同步</p>
+    </div>
+
+    <div class="main-container">
+        <!-- 虚拟形象区域 -->
+        <div class="avatar-section">
+            <div class="avatar-container">
+                <svg id="avatar-svg" viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 背景装饰 -->
+                    <defs>
+                        <linearGradient id="hairGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#4a5568"/>
+                            <stop offset="100%" style="stop-color:#2d3748"/>
+                        </linearGradient>
+                        <linearGradient id="skinGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#fde8d4"/>
+                            <stop offset="100%" style="stop-color:#f5d0b5"/>
+                        </linearGradient>
+                        <filter id="shadow">
+                            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.2"/>
+                        </filter>
+                    </defs>
+
+                    <!-- 身体/脖子 -->
+                    <path d="M120,220 Q150,240 180,220 L180,300 L120,300 Z" fill="#f5d0b5"/>
+                    <ellipse cx="150" cy="320" rx="60" ry="30" fill="#e2e8f0"/>
+
+                    <!-- 后发 -->
+                    <path id="back-hair" d="M80,150 Q60,200 70,250 Q90,280 120,260 Q150,270 180,260 Q210,280 230,250 Q240,200 220,150 Q200,80 150,70 Q100,80 80,150" fill="url(#hairGradient)"/>
+
+                    <!-- 脸型 -->
+                    <path id="face-shape" d="M100,120 Q95,180 120,210 Q150,230 180,210 Q205,180 200,120 Q195,60 150,55 Q105,60 100,120" fill="url(#skinGradient)"/>
+
+                    <!-- 腮红 -->
+                    <ellipse id="cheek-left" cx="115" cy="160" rx="12" ry="8" fill="#ffb6c1" opacity="0"/>
+                    <ellipse id="cheek-right" cx="185" cy="160" rx="12" ry="8" fill="#ffb6c1" opacity="0"/>
+
+                    <!-- 汗珠 -->
+                    <g id="sweat-left" opacity="0">
+                        <path d="M85,130 Q80,145 85,155 Q90,145 85,130" fill="#87ceeb"/>
+                    </g>
+                    <g id="sweat-right" opacity="0">
+                        <path d="M215,130 Q220,145 215,155 Q210,145 215,130" fill="#87ceeb"/>
+                    </g>
+
+                    <!-- 眼泪 -->
+                    <g id="tears" opacity="0">
+                        <path d="M110,145 Q105,165 110,180 Q115,165 110,145" fill="#87ceeb" opacity="0.6"/>
+                        <path d="M190,145 Q195,165 190,180 Q185,165 190,145" fill="#87ceeb" opacity="0.6"/>
+                    </g>
+
+                    <!-- 眉毛 -->
+                    <g id="eyebrows">
+                        <path id="eyebrow-left" d="M105,115 Q120,110 135,115" stroke="#4a5568" stroke-width="3" fill="none" stroke-linecap="round"/>
+                        <path id="eyebrow-right" d="M165,115 Q180,110 195,115" stroke="#4a5568" stroke-width="3" fill="none" stroke-linecap="round"/>
+                    </g>
+
+                    <!-- 眼睛 -->
+                    <g id="eyes">
+                        <!-- 左眼 -->
+                        <g id="eye-left">
+                            <ellipse cx="120" cy="140" rx="18" ry="22" fill="white"/>
+                            <circle cx="120" cy="140" r="12" fill="#4a5568"/>
+                            <circle cx="124" cy="136" r="5" fill="white"/>
+                            <circle cx="116" cy="144" r="3" fill="white" opacity="0.5"/>
+                            <!-- 上眼睑 (用于眨眼动画) -->
+                            <path id="eyelid-left" d="M100,120 Q120,115 140,120 L140,100 L100,100 Z" fill="#f5d0b5" opacity="0"/>
+                        </g>
+                        <!-- 右眼 -->
+                        <g id="eye-right">
+                            <ellipse cx="180" cy="140" rx="18" ry="22" fill="white"/>
+                            <circle cx="180" cy="140" r="12" fill="#4a5568"/>
+                            <circle cx="184" cy="136" r="5" fill="white"/>
+                            <circle cx="176" cy="144" r="3" fill="white" opacity="0.5"/>
+                            <!-- 上眼睑 -->
+                            <path id="eyelid-right" d="M160,120 Q180,115 200,120 L200,100 L160,100 Z" fill="#f5d0b5" opacity="0"/>
+                        </g>
+                    </g>
+
+                    <!-- 鼻子 -->
+                    <path d="M150,165 Q148,172 152,172" stroke="#d4a574" stroke-width="2" fill="none" opacity="0.6"/>
+
+                    <!-- 嘴巴 -->
+                    <g id="mouth-group">
+                        <path id="mouth" d="M130,185 Q150,195 170,185" stroke="#d4846a" stroke-width="3" fill="#ffb6c1" stroke-linecap="round"/>
+                    </g>
+
+                    <!-- 前发 -->
+                    <g id="front-hair">
+                        <path d="M80,120 Q90,80 120,75 Q150,70 150,90 Q150,70 180,75 Q210,80 220,120 Q210,100 190,95 Q170,90 150,100 Q130,90 110,95 Q90,100 80,120" fill="url(#hairGradient)"/>
+                        <path d="M120,75 Q130,110 125,130" fill="none" stroke="#2d3748" stroke-width="1" opacity="0.3"/>
+                        <path d="M180,75 Q170,110 175,130" fill="none" stroke="#2d3748" stroke-width="1" opacity="0.3"/>
+                    </g>
+
+                    <!-- 装饰发卡 -->
+                    <circle cx="95" cy="100" r="8" fill="#f472b6"/>
+                    <circle cx="95" cy="100" r="5" fill="#fce7f3"/>
+                </svg>
+
+                <div class="avatar-status">
+                    <div class="expression-label" id="expression-label">中性表情</div>
+                    <div class="talking-indicator" id="talking-indicator">🗣️ 正在说话...</div>
+                </div>
+            </div>
+
+            <!-- 状态日志 -->
+            <div class="panel">
+                <h3>📋 状态日志</h3>
+                <div class="status-log" id="status-log">
+                    <div class="log-entry"><span class="log-time">系统</span>虚拟形象系统已就绪</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 控制面板区域 -->
+        <div class="control-section">
+            <!-- 表情控制 -->
+            <div class="panel">
+                <h3>🎭 表情控制</h3>
+                <div class="expression-grid">
+                    <button class="expression-btn active" data-expression="neutral">
+                        <span class="emoji">😐</span>
+                        <span>中性</span>
+                    </button>
+                    <button class="expression-btn" data-expression="happy">
+                        <span class="emoji">😊</span>
+                        <span>开心</span>
+                    </button>
+                    <button class="expression-btn" data-expression="sad">
+                        <span class="emoji">😢</span>
+                        <span>悲伤</span>
+                    </button>
+                    <button class="expression-btn" data-expression="angry">
+                        <span class="emoji">😠</span>
+                        <span>生气</span>
+                    </button>
+                    <button class="expression-btn" data-expression="surprised">
+                        <span class="emoji">😲</span>
+                        <span>惊讶</span>
+                    </button>
+                    <button class="expression-btn" data-expression="confused">
+                        <span class="emoji">😕</span>
+                        <span>困惑</span>
+                    </button>
+                    <button class="expression-btn" data-expression="thinking">
+                        <span class="emoji">🤔</span>
+                        <span>思考</span>
+                    </button>
+                    <button class="expression-btn" data-expression="concerned">
+                        <span class="emoji">😟</span>
+                        <span>关切</span>
+                    </button>
+                    <button class="expression-btn" data-expression="excited">
+                        <span class="emoji">🤩</span>
+                        <span>兴奋</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 情感指标 -->
+            <div class="panel">
+                <h3>📊 情感指标 (6维度)</h3>
+                <div class="emotion-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">满意度</span>
+                        <div class="metric-bar">
+                            <div class="metric-fill" id="metric-satisfaction" style="width: 50%; background: #4CAF50;"></div>
+                        </div>
+                        <span class="metric-value" id="value-satisfaction">50</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">信任度</span>
+                        <div class="metric-bar">
+                            <div class="metric-fill" id="metric-trust" style="width: 50%; background: #2196F3;"></div>
+                        </div>
+                        <span class="metric-value" id="value-trust">50</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">挫败感</span>
+                        <div class="metric-bar">
+                            <div class="metric-fill" id="metric-frustration" style="width: 20%; background: #FF5722;"></div>
+                        </div>
+                        <span class="metric-value" id="value-frustration">20</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">紧急度</span>
+                        <div class="metric-bar">
+                            <div class="metric-fill" id="metric-urgency" style="width: 30%; background: #FF9800;"></div>
+                        </div>
+                        <span class="metric-value" id="value-urgency">30</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">参与度</span>
+                        <div class="metric-bar">
+                            <div class="metric-fill" id="metric-engagement" style="width: 50%; background: #9C27B0;"></div>
+                        </div>
+                        <span class="metric-value" id="value-engagement">50</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">困惑度</span>
+                        <div class="metric-bar">
+                            <div class="metric-fill" id="metric-confusion" style="width: 20%; background: #607D8B;"></div>
+                        </div>
+                        <span class="metric-value" id="value-confusion">20</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 对话测试 -->
+            <div class="panel">
+                <h3>💬 对话测试 (口型同步)</h3>
+                <div class="chat-area">
+                    <div class="chat-input-group">
+                        <input type="text" class="chat-input" id="chat-input" placeholder="输入文字让虚拟形象说话..." maxlength="100">
+                        <button class="btn-primary" id="speak-btn">说话</button>
+                    </div>
+                    <div class="quick-tests">
+                        <button class="quick-test-btn" data-text="你好！很高兴见到你！">问候</button>
+                        <button class="quick-test-btn" data-text="让我想一想这个问题...">思考</button>
+                        <button class="quick-test-btn" data-text="太棒了！恭喜你！">祝贺</button>
+                        <button class="quick-test-btn" data-text="对不起，我不太明白...">困惑</button>
+                        <button class="quick-test-btn" data-text="没关系，慢慢来。">安慰</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 情感场景测试 -->
+            <div class="panel">
+                <h3>🎬 情感场景测试</h3>
+                <div class="quick-tests">
+                    <button class="quick-test-btn" onclick="setEmotionScenario('happy')">😊 积极场景</button>
+                    <button class="quick-test-btn" onclick="setEmotionScenario('frustrated')">😤 挫败场景</button>
+                    <button class="quick-test-btn" onclick="setEmotionScenario('confused')">😵 困惑场景</button>
+                    <button class="quick-test-btn" onclick="setEmotionScenario('urgent')">😰 紧急场景</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 虚拟形象控制类 ====================
+        class Live2DAvatar {
+            constructor() {
+                this.currentExpression = 'neutral';
+                this.isTalking = false;
+                this.talkTimeout = null;
+
+                // 表情参数配置
+                this.expressionParams = {
+                    neutral: {
+                        eyebrowAngle: 0, eyebrowHeight: 0,
+                        eyeOpenness: 1, mouthOpenness: 0,
+                        mouthWidth: 0.5, cheekTint: 0,
+                        tearLevel: 0, sweatLevel: 0,
+                        label: '中性表情'
+                    },
+                    happy: {
+                        eyebrowAngle: -0.3, eyebrowHeight: 0.2,
+                        eyeOpenness: 0.8, mouthOpenness: 0.4,
+                        mouthWidth: 0.8, cheekTint: 0.3,
+                        tearLevel: 0, sweatLevel: 0,
+                        label: '开心'
+                    },
+                    sad: {
+                        eyebrowAngle: 0.5, eyebrowHeight: -0.3,
+                        eyeOpenness: 0.6, mouthOpenness: 0.1,
+                        mouthWidth: 0.3, cheekTint: 0,
+                        tearLevel: 0.4, sweatLevel: 0,
+                        label: '悲伤'
+                    },
+                    angry: {
+                        eyebrowAngle: -0.6, eyebrowHeight: 0.3,
+                        eyeOpenness: 0.9, mouthOpenness: 0.3,
+                        mouthWidth: 0.6, cheekTint: 0.2,
+                        tearLevel: 0, sweatLevel: 0,
+                        label: '生气'
+                    },
+                    surprised: {
+                        eyebrowAngle: -0.2, eyebrowHeight: 0.6,
+                        eyeOpenness: 1.2, mouthOpenness: 0.6,
+                        mouthWidth: 0.7, cheekTint: 0,
+                        tearLevel: 0, sweatLevel: 0.2,
+                        label: '惊讶'
+                    },
+                    confused: {
+                        eyebrowAngle: 0.3, eyebrowHeight: 0.1,
+                        eyeOpenness: 0.7, mouthOpenness: 0.15,
+                        mouthWidth: 0.4, cheekTint: 0,
+                        tearLevel: 0, sweatLevel: 0.3,
+                        label: '困惑'
+                    },
+                    thinking: {
+                        eyebrowAngle: 0.2, eyebrowHeight: 0,
+                        eyeOpenness: 0.5, mouthOpenness: 0.1,
+                        mouthWidth: 0.3, cheekTint: 0,
+                        tearLevel: 0, sweatLevel: 0,
+                        label: '思考'
+                    },
+                    concerned: {
+                        eyebrowAngle: 0.4, eyebrowHeight: -0.1,
+                        eyeOpenness: 0.85, mouthOpenness: 0.2,
+                        mouthWidth: 0.4, cheekTint: 0,
+                        tearLevel: 0, sweatLevel: 0,
+                        label: '关切'
+                    },
+                    excited: {
+                        eyebrowAngle: -0.4, eyebrowHeight: 0.4,
+                        eyeOpenness: 1, mouthOpenness: 0.5,
+                        mouthWidth: 0.9, cheekTint: 0.4,
+                        tearLevel: 0, sweatLevel: 0,
+                        label: '兴奋'
+                    }
+                };
+
+                this.init();
+            }
+
+            init() {
+                this.startBlinking();
+                this.startBreathing();
+            }
+
+            // 设置表情
+            setExpression(expressionType) {
+                const params = this.expressionParams[expressionType];
+                if (!params) return;
+
+                this.currentExpression = expressionType;
+
+                // 更新眉毛
+                const leftBrow = document.getElementById('eyebrow-left');
+                const rightBrow = document.getElementById('eyebrow-right');
+                const browY = 115 - params.eyebrowHeight * 15;
+                const browRotate = params.eyebrowAngle * 20;
+                leftBrow.setAttribute('transform', `rotate(${browRotate}, 120, ${browY}) translate(0, ${params.eyebrowHeight * 10})`);
+                rightBrow.setAttribute('transform', `rotate(${-browRotate}, 180, ${browY}) translate(0, ${params.eyebrowHeight * 10})`);
+
+                // 更新眼睛大小
+                const eyeOpenness = params.eyeOpenness;
+                const eyeScale = Math.max(0.3, Math.min(1.3, eyeOpenness));
+                document.getElementById('eye-left').setAttribute('transform', `scale(1, ${eyeScale}) translate(0, ${140 * (1 - eyeScale)})`);
+                document.getElementById('eye-right').setAttribute('transform', `scale(1, ${eyeScale}) translate(0, ${140 * (1 - eyeScale)})`);
+
+                // 更新嘴巴
+                const mouthPath = this.getMouthPath(params.mouthOpenness, params.mouthWidth);
+                document.getElementById('mouth').setAttribute('d', mouthPath);
+
+                // 更新腮红
+                document.getElementById('cheek-left').setAttribute('opacity', params.cheekTint);
+                document.getElementById('cheek-right').setAttribute('opacity', params.cheekTint);
+
+                // 更新汗珠
+                document.getElementById('sweat-left').setAttribute('opacity', params.sweatLevel > 0.2 ? params.sweatLevel : 0);
+                document.getElementById('sweat-right').setAttribute('opacity', params.sweatLevel > 0.2 ? params.sweatLevel : 0);
+
+                // 更新眼泪
+                document.getElementById('tears').setAttribute('opacity', params.tearLevel);
+
+                // 更新标签
+                document.getElementById('expression-label').textContent = params.label;
+
+                this.log(`表情切换: ${params.label}`);
+            }
+
+            // 获取嘴巴路径
+            getMouthPath(openness, width) {
+                const centerY = 185 + openness * 20;
+                const leftX = 130 + (1 - width) * 10;
+                const rightX = 170 - (1 - width) * 10;
+                const controlY = 195 + openness * 30;
+
+                if (openness < 0.1) {
+                    // 闭合的嘴
+                    return `M${leftX},${centerY} Q150,${centerY + 5} ${rightX},${centerY}`;
+                } else if (openness < 0.4) {
+                    // 微笑
+                    return `M${leftX},${centerY} Q150,${controlY} ${rightX},${centerY}`;
+                } else {
+                    // 张嘴
+                    const bottomY = centerY + openness * 15;
+                    return `M${leftX},${centerY} Q150,${controlY} ${rightX},${centerY} Q150,${bottomY} ${leftX},${centerY}`;
+                }
+            }
+
+            // 说话 (带口型同步)
+            speak(text) {
+                this.isTalking = true;
+                document.getElementById('talking-indicator').classList.add('active');
+
+                // 解析文本生成口型序列
+                const lipSequence = this.generateLipSequence(text);
+                this.playLipSequence(lipSequence);
+
+                this.log(`说话: "${text}"`);
+            }
+
+            // 生成口型序列
+            generateLipSequence(text) {
+                const vowels = ['a', 'o', 'e', 'i', 'u'];
+                const sequence = [];
+                let lastWasVowel = false;
+
+                for (let char of text.toLowerCase()) {
+                    let vowel = 'silent';
+                    if ('aoe'.includes(char)) vowel = 'a';
+                    else if ('iy'.includes(char)) vowel = 'i';
+                    else if ('u'.includes(char)) vowel = 'u';
+                    else if (char === ' ') vowel = 'silent';
+
+                    if (vowel !== 'silent' || !lastWasVowel) {
+                        sequence.push(vowel);
+                        lastWasVowel = vowel !== 'silent';
+                    }
+                }
+                return sequence;
+            }
+
+            // 播放口型序列
+            async playLipSequence(sequence) {
+                const baseParams = this.expressionParams[this.currentExpression];
+
+                for (let i = 0; i < sequence.length; i++) {
+                    if (!this.isTalking) break;
+
+                    const vowel = sequence[i];
+                    let mouthOpenness = 0;
+
+                    switch(vowel) {
+                        case 'a': mouthOpenness = 0.8; break;
+                        case 'i': mouthOpenness = 0.3; break;
+                        case 'u': mouthOpenness = 0.2; break;
+                        default: mouthOpenness = 0;
+                    }
+
+                    // 叠加基础表情
+                    const finalOpenness = Math.max(mouthOpenness, baseParams.mouthOpenness * 0.5);
+                    const mouthPath = this.getMouthPath(finalOpenness, baseParams.mouthWidth);
+                    document.getElementById('mouth').setAttribute('d', mouthPath);
+
+                    await this.sleep(120);
+                }
+
+                // 恢复原始表情
+                this.setExpression(this.currentExpression);
+
+                this.isTalking = false;
+                document.getElementById('talking-indicator').classList.remove('active');
+            }
+
+            // 停止说话
+            stopSpeaking() {
+                this.isTalking = false;
+                document.getElementById('talking-indicator').classList.remove('active');
+                this.setExpression(this.currentExpression);
+            }
+
+            // 眨眼动画
+            startBlinking() {
+                const blink = async () => {
+                    if (this.isTalking) {
+                        setTimeout(blink, 3000 + Math.random() * 2000);
+                        return;
+                    }
+
+                    // 闭眼
+                    document.getElementById('eyelid-left').setAttribute('opacity', '1');
+                    document.getElementById('eyelid-right').setAttribute('opacity', '1');
+
+                    await this.sleep(150);
+
+                    // 睁眼
+                    document.getElementById('eyelid-left').setAttribute('opacity', '0');
+                    document.getElementById('eyelid-right').setAttribute('opacity', '0');
+
+                    setTimeout(blink, 3000 + Math.random() * 2000);
+                };
+
+                setTimeout(blink, 3000);
+            }
+
+            // 呼吸动画
+            startBreathing() {
+                let time = 0;
+                const breath = () => {
+                    time += 0.05;
+                    const scale = 1 + Math.sin(time) * 0.005;
+                    const translate = Math.sin(time) * 2;
+                    document.getElementById('face-shape').setAttribute('transform', `scale(${scale}) translate(${150 * (1-scale)}, ${150 * (1-scale) + translate})`);
+                    requestAnimationFrame(breath);
+                };
+                breath();
+            }
+
+            // 更新情感指标
+            updateEmotionMetrics(metrics) {
+                const metricIds = ['satisfaction', 'trust', 'frustration', 'urgency', 'engagement', 'confusion'];
+
+                metricIds.forEach(id => {
+                    if (metrics[id] !== undefined) {
+                        const value = Math.max(0, Math.min(100, metrics[id]));
+                        const bar = document.getElementById(`metric-${id}`);
+                        const valueLabel = document.getElementById(`value-${id}`);
+
+                        if (bar && valueLabel) {
+                            bar.style.width = `${value}%`;
+                            valueLabel.textContent = Math.round(value);
+
+                            // 根据数值调整颜色
+                            if (value > 70) {
+                                bar.style.background = id === 'frustration' || id === 'confusion' || id === 'urgency'
+                                    ? '#f44336' : '#4CAF50';
+                            } else if (value > 40) {
+                                bar.style.background = '#FF9800';
+                            } else {
+                                bar.style.background = '#9E9E9E';
+                            }
+                        }
+                    }
+                });
+
+                // 根据指标自动调整表情
+                this.autoAdjustExpression(metrics);
+            }
+
+            // 自动根据情感指标调整表情
+            autoAdjustExpression(metrics) {
+                if (metrics.frustration > 60) {
+                    this.setExpression('concerned');
+                } else if (metrics.confusion > 60) {
+                    this.setExpression('confused');
+                } else if (metrics.satisfaction > 70) {
+                    this.setExpression('happy');
+                } else if (metrics.urgency > 70) {
+                    this.setExpression('surprised');
+                } else {
+                    this.setExpression('neutral');
+                }
+            }
+
+            // 辅助方法
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            log(message) {
+                const logContainer = document.getElementById('status-log');
+                const time = new Date().toLocaleTimeString();
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = `<span class="log-time">${time}</span>${message}`;
+                logContainer.insertBefore(entry, logContainer.firstChild);
+
+                // 限制日志数量
+                while (logContainer.children.length > 20) {
+                    logContainer.removeChild(logContainer.lastChild);
+                }
+            }
+        }
+
+        // ==================== 初始化 ====================
+        const avatar = new Live2DAvatar();
+
+        // 表情按钮事件
+        document.querySelectorAll('.expression-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.expression-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                avatar.setExpression(btn.dataset.expression);
+            });
+        });
+
+        // 说话按钮事件
+        document.getElementById('speak-btn').addEventListener('click', () => {
+            const input = document.getElementById('chat-input');
+            if (input.value.trim()) {
+                avatar.speak(input.value.trim());
+            }
+        });
+
+        // 回车发送
+        document.getElementById('chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const input = document.getElementById('chat-input');
+                if (input.value.trim()) {
+                    avatar.speak(input.value.trim());
+                }
+            }
+        });
+
+        // 快捷测试按钮
+        document.querySelectorAll('.quick-test-btn[data-text]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const text = btn.dataset.text;
+                document.getElementById('chat-input').value = text;
+                avatar.speak(text);
+            });
+        });
+
+        // 情感场景测试
+        function setEmotionScenario(scenario) {
+            const scenarios = {
+                happy: {
+                    satisfaction: 85, trust: 80, frustration: 10,
+                    urgency: 20, engagement: 75, confusion: 10
+                },
+                frustrated: {
+                    satisfaction: 25, trust: 40, frustration: 80,
+                    urgency: 60, engagement: 50, confusion: 40
+                },
+                confused: {
+                    satisfaction: 40, trust: 50, frustration: 30,
+                    urgency: 30, engagement: 60, confusion: 75
+                },
+                urgent: {
+                    satisfaction: 30, trust: 45, frustration: 50,
+                    urgency: 90, engagement: 80, confusion: 20
+                }
+            };
+
+            avatar.updateEmotionMetrics(scenarios[scenario]);
+            avatar.log(`场景切换: ${scenario}`);
+        }
+    </script>
+</body>
+</html>
