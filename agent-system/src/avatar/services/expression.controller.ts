@@ -3,18 +3,19 @@
  * 管理 Live2D 虚拟形象的表情状态和过渡
  */
 
+// Node.js 环境 polyfill
+declare const requestAnimationFrame: (callback: (time: number) => void) => number;
+if (typeof (global as any).requestAnimationFrame === 'undefined') {
+  (global as any).requestAnimationFrame = (callback: (time: number) => void) =>
+    setTimeout(() => callback(Date.now()), 16) as unknown as number;
+}
+
 import {
   ExpressionType,
   ExpressionParams,
   PRESET_EXPRESSIONS,
   AvatarState,
 } from '../entities/avatar.entity';
-
-/** 表情过渡配置 */
-interface TransitionConfig {
-  duration: number;     // 过渡时间 (ms)
-  easing: EasingFunction;
-}
 
 type EasingFunction = (t: number) => number;
 

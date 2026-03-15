@@ -10,8 +10,9 @@ import {
   AnimationType,
   Live2DModelConfig,
   EMOTION_TO_EXPRESSION,
-  LipSyncSequence,
+  LipSyncVowel,
 } from '../entities/avatar.entity';
+import { LipSyncSequence } from './lipsync.engine';
 import { ExpressionController } from './expression.controller';
 import { LipSyncEngine } from './lipsync.engine';
 
@@ -48,7 +49,7 @@ export class AvatarService {
       avatarId,
       sessionId,
       currentExpression: ExpressionType.NEUTRAL,
-      currentLipSync: { vowel: 'sil', intensity: 0, blendTime: 50 },
+      currentLipSync: { vowel: LipSyncVowel.SILENT, intensity: 0, blendTime: 50 },
       isTalking: false,
       currentAnimation: AnimationType.IDLE,
       position: { x: 0, y: 0 },

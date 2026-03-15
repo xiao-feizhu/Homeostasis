@@ -8,8 +8,6 @@ import { AvatarService } from '../services/avatar.service';
 import {
   ExpressionType,
   AnimationType,
-  AvatarState,
-  LipSyncSequence,
 } from '../entities/avatar.entity';
 
 /** 活跃的 Avatar 会话映射 */
@@ -19,7 +17,7 @@ const activeAvatars: Map<string, AvatarService> = new Map();
  * 创建 Avatar 会话
  * POST /api/v1/avatar/sessions
  */
-export function createAvatarSession(req: Request, res: Response): void {
+export async function createAvatarSession(req: Request, res: Response): Promise<void> {
   try {
     const { userId, config } = req.body;
 
@@ -64,9 +62,9 @@ export function createAvatarSession(req: Request, res: Response): void {
  * 获取 Avatar 状态
  * GET /api/v1/avatar/sessions/:sessionId
  */
-export function getAvatarState(req: Request, res: Response): void {
+export async function getAvatarState(req: Request, res: Response): Promise<void> {
   try {
-    const { sessionId } = req.params;
+    const sessionId = req.params.sessionId as string;
     const avatarService = activeAvatars.get(sessionId);
 
     if (!avatarService) {
@@ -96,9 +94,9 @@ export function getAvatarState(req: Request, res: Response): void {
  * 设置表情
  * POST /api/v1/avatar/sessions/:sessionId/expression
  */
-export function setExpression(req: Request, res: Response): void {
+export async function setExpression(req: Request, res: Response): Promise<void> {
   try {
-    const { sessionId } = req.params;
+    const sessionId = req.params.sessionId as string;
     const { expression, duration } = req.body;
 
     const avatarService = activeAvatars.get(sessionId);
@@ -134,9 +132,9 @@ export function setExpression(req: Request, res: Response): void {
  * 根据情感标签设置表情
  * POST /api/v1/avatar/sessions/:sessionId/emotion
  */
-export function setExpressionByEmotion(req: Request, res: Response): void {
+export async function setExpressionByEmotion(req: Request, res: Response): Promise<void> {
   try {
-    const { sessionId } = req.params;
+    const sessionId = req.params.sessionId as string;
     const { emotionLabel, duration, emotionMetrics } = req.body;
 
     const avatarService = activeAvatars.get(sessionId);
@@ -182,9 +180,9 @@ export function setExpressionByEmotion(req: Request, res: Response): void {
  * 说话（带口型同步）
  * POST /api/v1/avatar/sessions/:sessionId/speak
  */
-export function speak(req: Request, res: Response): void {
+export async function speak(req: Request, res: Response): Promise<void> {
   try {
-    const { sessionId } = req.params;
+    const sessionId = req.params.sessionId as string;
     const { text, duration } = req.body;
 
     if (!text) {
@@ -229,9 +227,9 @@ export function speak(req: Request, res: Response): void {
  * 停止说话
  * POST /api/v1/avatar/sessions/:sessionId/stop-speaking
  */
-export function stopSpeaking(req: Request, res: Response): void {
+export async function stopSpeaking(req: Request, res: Response): Promise<void> {
   try {
-    const { sessionId } = req.params;
+    const sessionId = req.params.sessionId as string;
     const avatarService = activeAvatars.get(sessionId);
 
     if (!avatarService) {
@@ -263,9 +261,9 @@ export function stopSpeaking(req: Request, res: Response): void {
  * 播放动画
  * POST /api/v1/avatar/sessions/:sessionId/animation
  */
-export function playAnimation(req: Request, res: Response): void {
+export async function playAnimation(req: Request, res: Response): Promise<void> {
   try {
-    const { sessionId } = req.params;
+    const sessionId = req.params.sessionId as string;
     const { animationType, animationName } = req.body;
 
     const avatarService = activeAvatars.get(sessionId);
@@ -302,9 +300,9 @@ export function playAnimation(req: Request, res: Response): void {
  * 删除 Avatar 会话
  * DELETE /api/v1/avatar/sessions/:sessionId
  */
-export function deleteAvatarSession(req: Request, res: Response): void {
+export async function deleteAvatarSession(req: Request, res: Response): Promise<void> {
   try {
-    const { sessionId } = req.params;
+    const sessionId = req.params.sessionId as string;
     const avatarService = activeAvatars.get(sessionId);
 
     if (!avatarService) {
@@ -316,7 +314,7 @@ export function deleteAvatarSession(req: Request, res: Response): void {
     }
 
     avatarService.destroy();
-    activeAvatars.delete(sessionId);
+    activeAvatars.delete(sessionId as string);
 
     res.json({
       success: true,
@@ -337,7 +335,7 @@ export function deleteAvatarSession(req: Request, res: Response): void {
  * 获取所有表情类型列表
  * GET /api/v1/avatar/expressions
  */
-export function getExpressionTypes(req: Request, res: Response): void {
+export async function getExpressionTypes(_req: Request, res: Response): Promise<void> {
   res.json({
     success: true,
     data: Object.keys(ExpressionType).map(key => ({
@@ -351,7 +349,7 @@ export function getExpressionTypes(req: Request, res: Response): void {
  * 获取所有动画类型列表
  * GET /api/v1/avatar/animations
  */
-export function getAnimationTypes(req: Request, res: Response): void {
+export async function getAnimationTypes(_req: Request, res: Response): Promise<void> {
   res.json({
     success: true,
     data: Object.keys(AnimationType).map(key => ({

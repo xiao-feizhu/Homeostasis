@@ -1,8 +1,18 @@
-
 /**
  * 口型同步引擎
  * 将文本/音频转换为 Live2D 口型动画
  */
+
+// Node.js 环境 polyfill
+declare const requestAnimationFrame: (callback: (time: number) => void) => number;
+declare const cancelAnimationFrame: (handle: number) => void;
+if (typeof (global as any).requestAnimationFrame === 'undefined') {
+  (global as any).requestAnimationFrame = (callback: (time: number) => void) =>
+    setTimeout(() => callback(Date.now()), 16) as unknown as number;
+}
+if (typeof (global as any).cancelAnimationFrame === 'undefined') {
+  (global as any).cancelAnimationFrame = (handle: number) => clearTimeout(handle as unknown as NodeJS.Timeout);
+}
 
 import {
   LipSyncVowel,
@@ -21,7 +31,7 @@ interface LipSyncTimestamp {
 }
 
 /** 口型序列 */
-interface LipSyncSequence {
+export interface LipSyncSequence {
   duration: number;           // 总时长 (ms)
   timestamps: LipSyncTimestamp[];
 }
@@ -79,7 +89,7 @@ export class LipSyncEngine {
    * 从音频生成口型序列（基于音量/频谱分析）
    * @param audioBuffer 音频数据
    */
-  async generateFromAudio(audioBuffer: ArrayBuffer): Promise<LipSyncSequence> {
+  async generateFromAudio(_audioBuffer: ArrayBuffer): Promise<LipSyncSequence> {
     // 模拟音频分析 - 实际项目中应使用 Web Audio API 分析频谱
     // 这里使用简化的模拟
     const duration = 5000; // 假设5秒音频
