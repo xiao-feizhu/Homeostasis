@@ -70,8 +70,10 @@ export class ApiApplication {
    * 配置中间件
    */
   private setupMiddleware(options: ApiAppOptions): void {
-    // 安全头部
-    this.app.use(helmet());
+    // 安全头部（允许静态资源）
+    this.app.use(helmet({
+      contentSecurityPolicy: false
+    }));
 
     // CORS
     this.app.use(cors({
@@ -83,6 +85,9 @@ export class ApiApplication {
     // 请求解析
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true }));
+
+    // 静态文件服务
+    this.app.use(express.static('public'));
 
     // 日志
     if (options.enableLogging !== false) {

@@ -10,12 +10,6 @@ import {
   AvatarState,
 } from '../entities/avatar.entity';
 
-/** 表情过渡配置 */
-interface TransitionConfig {
-  duration: number;     // 过渡时间 (ms)
-  easing: EasingFunction;
-}
-
 type EasingFunction = (t: number) => number;
 
 /** 缓动函数 */
@@ -29,6 +23,16 @@ const EASING_FUNCTIONS: Record<string, EasingFunction> = {
     return t === 0 ? 0 : t === 1 ? 1 : -Math.pow(2, 10 * t - 10) * Math.sin((t * 10 - 10.75) * c4);
   },
 };
+
+/**
+ * 浏览器动画兼容层
+ * 在 Node.js 环境中使用 setTimeout 模拟
+ */
+type RAFCallback = () => void;
+
+const rAF = typeof (globalThis as any).requestAnimationFrame !== 'undefined'
+  ? (globalThis as any).requestAnimationFrame as (cb: RAFCallback) => number
+  : (callback: RAFCallback) => setTimeout(callback, 16);
 
 /** 表情控制器类 */
 export class ExpressionController {
@@ -205,13 +209,13 @@ export class ExpressionController {
       this.onParamsUpdate?.(this.currentParams);
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        rAF(animate);
       } else {
         this.isTransitioning = false;
       }
     };
 
-    requestAnimationFrame(animate);
+    rAF(animate);
   }
 
   /**

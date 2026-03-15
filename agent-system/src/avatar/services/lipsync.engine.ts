@@ -4,6 +4,19 @@
  * 将文本/音频转换为 Live2D 口型动画
  */
 
+/**
+ * 浏览器动画兼容层
+ */
+type RAFCallback = () => void;
+
+const rAF = typeof (globalThis as any).requestAnimationFrame !== 'undefined'
+  ? (globalThis as any).requestAnimationFrame as (cb: RAFCallback) => number
+  : (callback: RAFCallback) => setTimeout(callback, 16);
+
+const cAF = typeof (globalThis as any).cancelAnimationFrame !== 'undefined'
+  ? (globalThis as any).cancelAnimationFrame as (id: number) => void
+  : clearTimeout;
+
 import {
   LipSyncVowel,
   LipSyncConfig,
@@ -79,7 +92,7 @@ export class LipSyncEngine {
    * 从音频生成口型序列（基于音量/频谱分析）
    * @param audioBuffer 音频数据
    */
-  async generateFromAudio(audioBuffer: ArrayBuffer): Promise<LipSyncSequence> {
+  async generateFromAudio(_audioBuffer: ArrayBuffer): Promise<LipSyncSequence> {
     // 模拟音频分析 - 实际项目中应使用 Web Audio API 分析频谱
     // 这里使用简化的模拟
     const duration = 5000; // 假设5秒音频
@@ -133,7 +146,7 @@ export class LipSyncEngine {
     this.isPlaying = false;
     this.avatarState.isTalking = false;
     if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
+      cAF(this.animationFrameId);
       this.animationFrameId = null;
     }
     // 重置口型到静音状态
@@ -147,7 +160,7 @@ export class LipSyncEngine {
     this.isPlaying = false;
     this.avatarState.isTalking = false;
     if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
+      cAF(this.animationFrameId);
       this.animationFrameId = null;
     }
   }
@@ -309,10 +322,10 @@ export class LipSyncEngine {
         this.onLipSyncUpdate?.(0, 0.5);
       }
 
-      this.animationFrameId = requestAnimationFrame(animate);
+      this.animationFrameId = rAF(animate) as number;
     };
 
-    this.animationFrameId = requestAnimationFrame(animate);
+    this.animationFrameId = rAF(animate) as number;
   }
 
   /**

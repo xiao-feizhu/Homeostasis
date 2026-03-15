@@ -211,6 +211,17 @@ export interface AvatarState {
   opacity: number;
 }
 
+/** 口型序列 */
+export interface LipSyncSequence {
+  duration: number;
+  timestamps: Array<{
+    vowel: LipSyncVowel;
+    startTime: number;
+    endTime: number;
+    intensity: number;
+  }>;
+}
+
 /** Avatar 配置 */
 export interface AvatarConfig {
   model: Live2DModelConfig;
