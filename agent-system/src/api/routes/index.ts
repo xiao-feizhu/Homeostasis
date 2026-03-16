@@ -7,3 +7,4 @@ export * from './execution.routes';
 export * from './breakpoint.routes';
 export * from './metrics.routes';
 export * from './avatar.routes';
+export * from './memory.routes';

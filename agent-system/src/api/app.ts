@@ -23,7 +23,8 @@ import {
   createExecutionRoutes,
   createBreakpointRoutes,
   createMetricsRoutes,
-  createAvatarRoutes
+  createAvatarRoutes,
+  createMemoryRoutes
 } from './routes';
 import { createSuccessResponse } from './types';
 import { WebSocketNotificationServer } from './websocket';
@@ -138,6 +139,9 @@ export class ApiApplication {
 
     // 虚拟形象路由
     this.app.use('/api/avatar', createAvatarRoutes());
+
+    // 记忆系统路由
+    this.app.use('/api/memory', createMemoryRoutes());
 
     // 健康检查路由（独立挂载）
     this.app.get('/api/health', (_req, res) => {
