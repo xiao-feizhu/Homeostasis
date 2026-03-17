@@ -2,6 +2,72 @@
  * Airi Live2D 适配器测试
  */
 
+// Mock browser APIs and PixiJS
+global.window = {
+  devicePixelRatio: 1,
+  requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(cb, 16),
+  cancelAnimationFrame: (id: number) => clearTimeout(id),
+} as any;
+
+// Set global requestAnimationFrame/cancelAnimationFrame
+global.requestAnimationFrame = global.window.requestAnimationFrame;
+global.cancelAnimationFrame = global.window.cancelAnimationFrame;
+
+global.document = {
+  getElementById: jest.fn(() => ({
+    getContext: jest.fn(),
+    width: 800,
+    height: 600,
+  })),
+  createElement: jest.fn(() => ({})),
+} as any;
+
+// Mock pixi.js
+jest.mock('pixi.js', () => ({
+  Application: jest.fn().mockImplementation(() => ({
+    stage: { addChild: jest.fn() },
+    ticker: { update: jest.fn() },
+    destroy: jest.fn(),
+  })),
+  Container: jest.fn().mockImplementation(() => ({
+    addChild: jest.fn(),
+    removeChild: jest.fn(),
+    destroy: jest.fn(),
+    position: { set: jest.fn() },
+  })),
+}));
+
+// Mock pixi-live2d-display
+jest.mock('pixi-live2d-display', () => ({
+  Live2DModel: {
+    from: jest.fn().mockResolvedValue({
+      scale: { set: jest.fn() },
+      anchor: { set: jest.fn() },
+      position: { set: jest.fn() },
+      destroy: jest.fn(),
+      internalModel: {
+        motionManager: {
+          groups: {},
+          startMotion: jest.fn(),
+          stopAllMotions: jest.fn(),
+          state: { currentGroup: null },
+        },
+        expressionManager: {
+          setExpression: jest.fn(),
+        },
+        coreModel: {
+          setParameterValueById: jest.fn(),
+          getParameterValueById: jest.fn().mockReturnValue(0),
+        },
+        focusController: {
+          focus: jest.fn(),
+          update: jest.fn(),
+        },
+      },
+    }),
+  },
+}));
+
 import { ExpressionType, Live2DModelConfig } from '../../../entities/avatar.entity';
 import { AiriLive2DAdapter } from '../airi-live2d.adapter';
 import { EmotionMapper } from '../emotion-mapper';
@@ -10,7 +76,12 @@ describe('AiriLive2DAdapter', () => {
   let adapter: AiriLive2DAdapter;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     adapter = new AiriLive2DAdapter();
+  });
+
+  afterEach(() => {
+    adapter.destroy();
   });
 
   describe('Initialization', () => {
@@ -39,20 +110,31 @@ describe('AiriLive2DAdapter', () => {
       expect(state.position).toEqual({ x: 0, y: 0 });
     });
 
-    it('should throw error when initialize is called (not implemented)', async () => {
-      // Use canvas ID string to avoid DOM type issues in Node test environment
+    it('should initialize with canvas element', async () => {
+      const mockCanvas = {
+        getContext: jest.fn(),
+        width: 800,
+        height: 600,
+      } as any;
+
       const config = {
-        modelConfig: {
-          modelId: 'test-model',
-          name: 'Test Model',
-          version: '1.0',
-          modelPath: '/path/to/model.model3.json',
-          texturePath: '/path/to/texture.png',
-        } as Live2DModelConfig,
-        canvas: 'test-canvas-id',
+        canvas: mockCanvas,
       };
 
-      await expect(adapter.initialize(config)).rejects.toThrow('Not implemented');
+      await adapter.initialize(config);
+
+      expect(adapter.getState().isInitialized).toBe(true);
+    });
+
+    it('should throw error when initialized twice', async () => {
+      const mockCanvas = {
+        getContext: jest.fn(),
+        width: 800,
+        height: 600,
+      } as any;
+
+      await adapter.initialize({ canvas: mockCanvas });
+      await expect(adapter.initialize({ canvas: mockCanvas })).rejects.toThrow('Adapter already initialized');
     });
   });
 
@@ -93,21 +175,11 @@ describe('AiriLive2DAdapter', () => {
       it('should return false when model is not loaded', () => {
         expect(adapter.isLoaded()).toBe(false);
       });
-
-      it('should return true after model is loaded', async () => {
-        // 这是一个占位测试 - 等实现后更新
-        // 当前状态是 false，因为 loadModel 会抛出错误
-        expect(adapter.isLoaded()).toBe(false);
-      });
     });
 
     describe('getCurrentExpression', () => {
       it('should return NEUTRAL by default', () => {
         expect(adapter.getCurrentExpression()).toBe(ExpressionType.NEUTRAL);
-      });
-
-      it('should throw error when setExpression is called (not implemented)', async () => {
-        await expect(adapter.setExpression(ExpressionType.HAPPY)).rejects.toThrow('Not implemented');
       });
     });
   });
@@ -121,54 +193,21 @@ describe('AiriLive2DAdapter', () => {
       texturePath: '/path/to/texture.png',
     };
 
-    it('should throw error when loadModel is called (not implemented)', async () => {
-      await expect(adapter.loadModel(mockModelConfig)).rejects.toThrow('Not implemented');
-    });
+    it('should load model successfully', async () => {
+      const mockCanvas = {
+        getContext: jest.fn(),
+        width: 800,
+        height: 600,
+      } as any;
 
-    it('should throw error when unloadModel is called (not implemented)', () => {
-      expect(() => adapter.unloadModel()).toThrow('Not implemented');
-    });
+      await adapter.initialize({ canvas: mockCanvas });
+      await adapter.loadModel(mockModelConfig);
 
-    it('should throw error when destroy is called (not implemented)', () => {
-      expect(() => adapter.destroy()).toThrow('Not implemented');
-    });
-  });
+      expect(adapter.isLoaded()).toBe(true);
+    }, 10000);
 
-  describe('Motion Operations', () => {
-    it('should throw error when playMotion is called (not implemented)', async () => {
-      await expect(adapter.playMotion('Happy')).rejects.toThrow('Not implemented');
-    });
-
-    it('should throw error when playMotion with priority is called (not implemented)', async () => {
-      await expect(adapter.playMotion('Happy', 100)).rejects.toThrow('Not implemented');
-    });
-
-    it('should throw error when stopMotion is called (not implemented)', () => {
-      expect(() => adapter.stopMotion()).toThrow('Not implemented');
-    });
-  });
-
-  describe('Parameter Operations', () => {
-    it('should throw error when updateParameter is called (not implemented)', () => {
-      expect(() => adapter.updateParameter('ParamAngleX', 0.5)).toThrow('Not implemented');
-    });
-
-    it('should throw error when getParameter is called (not implemented)', () => {
-      expect(() => adapter.getParameter('ParamAngleX')).toThrow('Not implemented');
-    });
-  });
-
-  describe('LipSync Operations', () => {
-    it('should throw error when startTalking is called (not implemented)', () => {
-      expect(() => adapter.startTalking()).toThrow('Not implemented');
-    });
-
-    it('should throw error when stopTalking is called (not implemented)', () => {
-      expect(() => adapter.stopTalking()).toThrow('Not implemented');
-    });
-
-    it('should throw error when setLipSync is called (not implemented)', () => {
-      expect(() => adapter.setLipSync('a', 0.8)).toThrow('Not implemented');
+    it('should throw error when loading model without initialization', async () => {
+      await expect(adapter.loadModel(mockModelConfig)).rejects.toThrow('Adapter not initialized');
     });
   });
 
@@ -176,13 +215,49 @@ describe('AiriLive2DAdapter', () => {
     it('should use emotion mapper to translate expressions', () => {
       const mapper = adapter.getEmotionMapper();
 
-      // 验证表情映射器被正确使用
       expect(mapper.mapToAiriMotion(ExpressionType.HAPPY)).toBe('Happy');
       expect(mapper.mapToAiriMotion(ExpressionType.SAD)).toBe('Sad');
     });
 
-    it('should throw error when setExpression is called', async () => {
-      await expect(adapter.setExpression(ExpressionType.HAPPY)).rejects.toThrow('Not implemented');
+    it('should throw error when setExpression called without model', async () => {
+      await expect(adapter.setExpression(ExpressionType.HAPPY)).rejects.toThrow('Model not loaded');
+    });
+  });
+
+  describe('Motion Operations', () => {
+    it('should throw error when playMotion called without model', async () => {
+      await expect(adapter.playMotion('Happy')).rejects.toThrow('Model not loaded');
+    });
+
+    it('should throw error when stopMotion called without model', () => {
+      expect(() => adapter.stopMotion()).not.toThrow();
+    });
+  });
+
+  describe('Parameter Operations', () => {
+    it('should not throw when updating parameter without model', () => {
+      expect(() => adapter.updateParameter('ParamAngleX', 0.5)).not.toThrow();
+    });
+
+    it('should return 0 for parameter without model', () => {
+      expect(adapter.getParameter('ParamAngleX')).toBe(0);
+    });
+  });
+
+  describe('LipSync Operations', () => {
+    it('should not throw when startTalking called', () => {
+      expect(() => adapter.startTalking()).not.toThrow();
+      expect(adapter.getState().isTalking).toBe(true);
+    });
+
+    it('should not throw when stopTalking called', () => {
+      adapter.startTalking();
+      expect(() => adapter.stopTalking()).not.toThrow();
+      expect(adapter.getState().isTalking).toBe(false);
+    });
+
+    it('should not throw when setLipSync called', () => {
+      expect(() => adapter.setLipSync('a', 0.8)).not.toThrow();
     });
   });
 
@@ -191,8 +266,52 @@ describe('AiriLive2DAdapter', () => {
       const state = adapter.getState();
       state.scale = 999;
 
-      // 原始适配器状态不应被修改
       expect(adapter.getState().scale).toBe(1);
+    });
+  });
+
+  describe('Event Handlers', () => {
+    it('should set event handlers', async () => {
+      const onModelLoaded = jest.fn();
+      const onModelError = jest.fn();
+
+      adapter.setEventHandlers({
+        onModelLoaded,
+        onModelError,
+      });
+
+      const mockCanvas = {
+        getContext: jest.fn(),
+        width: 800,
+        height: 600,
+      } as any;
+
+      await adapter.initialize({ canvas: mockCanvas });
+
+      expect(onModelLoaded).toHaveBeenCalled();
+    });
+  });
+
+  describe('Motion Manager', () => {
+    it('should get motion manager', () => {
+      const motionManager = adapter.getMotionManager();
+      expect(motionManager).toBeDefined();
+    });
+  });
+
+  describe('Destroy', () => {
+    it('should clean up resources on destroy', async () => {
+      const mockCanvas = {
+        getContext: jest.fn(),
+        width: 800,
+        height: 600,
+      } as any;
+
+      await adapter.initialize({ canvas: mockCanvas });
+      adapter.destroy();
+
+      expect(adapter.getState().isInitialized).toBe(false);
+      expect(adapter.getState().isModelLoaded).toBe(false);
     });
   });
 });

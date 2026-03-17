@@ -40,6 +40,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@pixi/app": "^7.4.3",
+    "@pixi/core": "^7.4.3",
+    "@pixi/sprite": "^7.4.3",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",
@@ -48,6 +51,8 @@
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "morgan": "^1.10.1",
+    "pixi-live2d-display": "^0.4.0",
+    "pixi.js": "^7.4.3",
     "ws": "^8.19.0"
   }
 }

@@ -21,8 +21,8 @@ export interface AiriEmotionMapping {
  * Live2D 模型加载配置
  */
 export interface Live2DLoadConfig {
-  /** 模型配置 */
-  modelConfig: Live2DModelConfig;
+  /** 模型配置 (可选，可在初始化后单独加载) */
+  modelConfig?: Live2DModelConfig;
   /** Canvas 元素或 ID */
   canvas: HTMLCanvasElement | string;
   /** 加载选项 */

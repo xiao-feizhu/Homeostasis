@@ -4,4 +4,6 @@
 
 export * from './types';
 export * from './emotion-mapper';
+export * from './motion-manager';
+export * from './animation';
 export * from './airi-live2d.adapter';
