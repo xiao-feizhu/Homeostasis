@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent System - Kimi LLM 对话</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #0f0f1a;
+      --bg-secondary: #1a1a2e;
+      --bg-tertiary: #252542;
+      --accent-primary: #3b82f6;
+      --accent-success: #10b981;
+      --accent-warning: #f59e0b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --border-color: rgba(255,255,255,0.1);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .header {
+      height: 60px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-primary), #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .main-container {
+      display: grid;
+      grid-template-columns: 1fr 420px 360px;
+      height: calc(100vh - 60px);
+      margin-top: 60px;
+    }
+
+    /* Avatar Section */
+    .avatar-section {
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .avatar-header {
+      position: absolute;
+      top: 16px; left: 16px; right: 16px;
+      display: flex;
+      justify-content: space-between;
+      z-index: 10;
+    }
+
+    .avatar-info {
+      padding: 10px 16px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+    }
+
+    .avatar-name { font-weight: 600; font-size: 14px; }
+    .avatar-status { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    .avatar-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      width: 36px; height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    #live2d-canvas { flex: 1; width: 100%; }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: rgba(0,0,0,0.8);
+      z-index: 50;
+    }
+
+    .loading-overlay.hidden { display: none; }
+
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Chat Section */
+    .chat-section {
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-title { font-size: 14px; font-weight: 600; }
+
+    .smart-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .toggle-switch {
+      width: 44px; height: 24px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .toggle-switch.active {
+      background: var(--accent-primary);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      background: white;
+      border-radius: 50%;
+      top: 2px; left: 2px;
+      transition: all 0.2s;
+    }
+
+    .toggle-switch.active::after {
+      left: 22px;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      display: flex;
+      gap: 12px;
+      max-width: 95%;
+      animation: messageIn 0.3s ease;
+    }
+
+    @keyframes messageIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .message.user .message-avatar {
+      background: var(--accent-primary);
+    }
+
+    .message-content {
+      padding: 12px 16px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .message.user .message-content {
+      background: var(--accent-primary);
+    }
+
+    .message-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .emotion-tag {
+      padding: 2px 8px;
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent-primary);
+      border-radius: 4px;
+      font-size: 10px;
+    }
+
+    .chat-input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 8px 12px;
+      outline: none;
+    }
+
+    .chat-input::placeholder { color: var(--text-secondary); }
+
+    .btn-send {
+      width: 36px; height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent-primary);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-send:hover { background: #60a5fa; }
+
+    /* Control Panel */
+    .control-section {
+      background: var(--bg-secondary);
+      overflow-y: auto;
+    }
+
+    .panel {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .panel-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .panel-content { padding: 0 20px 20px; }
+
+    /* Expression Grid */
+    .expression-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .expr-btn {
+      padding: 12px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .expr-btn:hover {
+      border-color: var(--accent-primary);
+      background: var(--bg-hover);
+    }
+
+    .expr-btn.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    .expr-icon { font-size: 20px; }
+
+    /* Trigger Words */
+    .trigger-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .trigger-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    .trigger-word {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .trigger-badge {
+      padding: 2px 8px;
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent-primary);
+      border-radius: 4px;
+      font-size: 10px;
+    }
+
+    .current-expr {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .action-btn {
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 12px;
+    }
+
+    .action-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* Log Panel */
+    .log-container {
+      max-height: 150px;
+      overflow-y: auto;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .log-entry {
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .log-entry.detected {
+      color: var(--accent-success);
+    }
+
+    .log-entry.triggered {
+      color: var(--accent-primary);
+    }
+
+    @media (max-width: 1200px) {
+      .main-container { grid-template-columns: 1fr 350px; }
+      .control-section { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div class="logo">Agent System 🤖 Sofia</div>
+      <div style="padding: 6px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px; font-size: 12px; color: var(--accent-success);">
+        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-success); margin-right: 6px; animation: pulse 2s infinite;"></span>
+        系统运行中
+      </div>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- Avatar Section -->
+    <section class="avatar-section">
+      <div class="avatar-header">
+        <div class="avatar-info">
+          <div class="avatar-name">Sofia</div>
+          <div class="avatar-status" id="avatar-status">等待指令...</div>
+        </div>
+        <div class="avatar-controls">
+          <button class="btn-icon" id="btn-debug" title="调试">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <canvas id="live2d-canvas"></canvas>
+      <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <p>正在初始化 Live2D...</p>
+      </div>
+    </section>
+
+    <!-- Chat Section -->
+    <section class="chat-section">
+      <div class="chat-header">
+        <span class="chat-title">💬 智能对话</span>
+        <div class="smart-toggle">
+          <span>智能表情</span>
+          <div class="toggle-switch active" id="smart-toggle"></div>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="chat-messages">
+        <div class="message">
+          <div class="message-avatar">🤖</div>
+          <div class="message-content">
+            你好！我是 Sofia，你的 AI 助手。
+            <br><br>
+            💡 <strong>试试对我说：</strong>
+            <br>• "我好开心！" → 爱心眼 😍
+            <br>• "有点难过..." → 泪汪汪 🥺
+            <br>• "我要唱歌" → 拿话筒 🎤
+            <br>• "你好可爱" → 星星眼 ✨
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="input-wrapper">
+          <input type="text" class="chat-input" id="chat-input" placeholder="输入消息，我会根据内容自动切换表情...">
+          <button class="btn-send" id="btn-send">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Control Panel -->
+    <section class="control-section">
+      <!-- Connection Status -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🔌 连接状态</span>
+        </div>
+        <div class="panel-content">
+          <div id="connection-status" style="padding: 12px; border-radius: 8px; background: var(--bg-tertiary); text-align: center;">
+            <span id="ws-status-dot" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; margin-right: 8px;"></span>
+            <span id="ws-status-text">连接中...</span>
+          </div>
+          <p style="margin-top: 10px; font-size: 12px; color: var(--text-secondary); text-align: center;">
+            代理: ws://localhost:3001
+          </p>
+        </div>
+      </div>
+
+      <!-- Expressions -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🎭 表情控制</span>
+        </div>
+        <div class="panel-content">
+          <div class="expression-grid">
+            <button class="expr-btn" data-expr="爱心眼">
+              <span class="expr-icon">❤️</span>
+              <span>爱心</span>
+            </button>
+            <button class="expr-btn" data-expr="黑脸">
+              <span class="expr-icon">⬛</span>
+              <span>黑脸</span>
+            </button>
+            <button class="expr-btn" data-expr="泪汪汪">
+              <span class="expr-icon">🥺</span>
+              <span>泪汪汪</span>
+            </button>
+            <button class="expr-btn" data-expr="猫猫嘴">
+              <span class="expr-icon">😺</span>
+              <span>猫猫</span>
+            </button>
+            <button class="expr-btn" data-expr="拿话筒">
+              <span class="expr-icon">🎤</span>
+              <span>话筒</span>
+            </button>
+            <button class="expr-btn" data-expr="星星眼">
+              <span class="expr-icon">✨</span>
+              <span>星星</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LLM Info -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🤖 LLM 驱动</span>
+        </div>
+        <div class="panel-content">
+          <div class="trigger-list">
+            <div class="trigger-item">
+              <div class="trigger-word">
+                <span>happy → 爱心眼</span>
+                <span class="trigger-badge">开心</span>
+              </div>
+              <span class="current-expr">❤️</span>
+            </div>
+            <div class="trigger-item">
+              <div class="trigger-word">
+                <span>sad → 泪汪汪</span>
+                <span class="trigger-badge">难过</span>
+              </div>
+              <span class="current-expr">🥺</span>
+            </div>
+            <div class="trigger-item">
+              <div class="trigger-word">
+                <span>excited → 星星眼</span>
+                <span class="trigger-badge">兴奋</span>
+              </div>
+              <span class="current-expr">✨</span>
+            </div>
+            <div class="trigger-item">
+              <div class="trigger-word">
+                <span>singing → 拿话筒</span>
+                <span class="trigger-badge">唱歌</span>
+              </div>
+              <span class="current-expr">🎤</span>
+            </div>
+            <div class="trigger-item">
+              <div class="trigger-word">
+                <span>angry → 黑脸</span>
+                <span class="trigger-badge">生气</span>
+              </div>
+              <span class="current-expr">⬛</span>
+            </div>
+            <div class="trigger-item">
+              <div class="trigger-word">
+                <span>playful → 猫猫嘴</span>
+                <span class="trigger-badge">调皮</span>
+              </div>
+              <span class="current-expr">😺</span>
+            </div>
+          </div>
+        </div>
+      </div>
+                <span>猫/喵/调皮</span>
+                <span class="trigger-badge">猫猫嘴</span>
+              </div>
+              <span class="current-expr">😺</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detection Log -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📋 检测日志</span>
+        </div>
+        <div class="panel-content">
+          <div class="log-container" id="log-container">
+            <div class="log-entry">系统已启动，等待输入...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Camera Controls -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📷 镜头控制</span>
+        </div>
+        <div class="panel-content">
+          <div class="camera-controls" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <button class="action-btn" id="btn-zoom-out">➖ 缩小</button>
+            <button class="action-btn" id="btn-camera-reset">🎯 重置</button>
+            <button class="action-btn" id="btn-zoom-in">➕ 放大</button>
+          </div>
+          <div class="camera-controls" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px;">
+            <button class="action-btn" id="btn-zoom-50" style="font-size: 11px;">50%</button>
+            <button class="action-btn" id="btn-zoom-100" style="font-size: 11px;">100%</button>
+            <button class="action-btn" id="btn-zoom-150" style="font-size: 11px; background: var(--accent-primary);">150%</button>
+            <button class="action-btn" id="btn-zoom-200" style="font-size: 11px;">200%</button>
+          </div>
+          <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.5;">
+            <p>🖱️ 滚轮：缩放</p>
+            <p>✋ 拖拽：移动镜头</p>
+            <p>👆 双击：重置视角</p>
+          </div>
+          <div id="zoom-level" style="margin-top: 10px; text-align: center; font-size: 12px; color: var(--accent-primary);">
+            缩放: 100%
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">⚡ 快捷操作</span>
+        </div>
+        <div class="panel-content">
+          <div class="quick-actions">
+            <button class="action-btn" id="btn-reset">↩️ 重置表情</button>
+            <button class="action-btn" id="btn-random">🎲 随机表情</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+
+  <script type="module">
+    // WebSocket 代理配置
+    const WS_URL = 'ws://localhost:3001';
+
+    // LLM emotion 到 Live2D expression 的映射
+    const emotionToExpression = {
+      'happy': '爱心眼',
+      'sad': '泪汪汪',
+      'excited': '星星眼',
+      'singing': '拿话筒',
+      'angry': '黑脸',
+      'playful': '猫猫嘴',
+      'neutral': ''
+    };
+
+    // WebSocket 连接
+    let ws = null;
+    let wsConnected = false;
+    let messageQueue = [];
+
+    // State
+    let model = null;
+    let app = null;
+    let smartMode = true;
+    let currentExpression = '';
+
+    const statusText = document.getElementById('avatar-status');
+    const loading = document.getElementById('loading');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const logContainer = document.getElementById('log-container');
+
+    // Add log entry
+    function addLog(message, type = 'normal') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logContainer.appendChild(entry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    // WebSocket 连接管理
+    function connectWebSocket() {
+      addLog('正在连接代理服务器...', 'detected');
+
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        addLog('已连接到代理服务器', 'triggered');
+        wsConnected = true;
+        statusText.textContent = '已连接，可以开始对话';
+
+        // 更新连接状态 UI
+        const dot = document.getElementById('ws-status-dot');
+        const text = document.getElementById('ws-status-text');
+        if (dot) dot.style.background = '#10b981';
+        if (text) text.textContent = '已连接';
+
+        // 发送队列中的消息
+        while (messageQueue.length > 0) {
+          const msg = messageQueue.shift();
+          ws.send(JSON.stringify(msg));
+        }
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('收到消息:', data);
+
+        switch (data.type) {
+          case 'connected':
+            addLog(data.message, 'triggered');
+            break;
+
+          case 'typing':
+            if (data.status === 'start') {
+              statusText.textContent = 'Sofia 正在思考...';
+            } else {
+              statusText.textContent = '已就绪';
+            }
+            break;
+
+          case 'response':
+            // 映射 emotion 到 Live2D expression
+            const expression = emotionToExpression[data.emotion] || '';
+            if (expression) {
+              applyExpression(expression, 'smart');
+            }
+
+            addMessage('system', data.reply, {
+              emotion: data.emotion,
+              time: new Date().toLocaleTimeString()
+            });
+            break;
+
+          case 'error':
+            addLog(`错误: ${data.message}`, 'error');
+            addMessage('system', data.message, {
+              emotion: '错误',
+              time: new Date().toLocaleTimeString()
+            });
+            break;
+        }
+      };
+
+      ws.onclose = () => {
+        addLog('与代理服务器断开连接', 'error');
+        wsConnected = false;
+        statusText.textContent = '连接已断开，5秒后重试...';
+
+        // 更新连接状态 UI
+        const dot = document.getElementById('ws-status-dot');
+        const text = document.getElementById('ws-status-text');
+        if (dot) dot.style.background = '#ef4444';
+        if (text) text.textContent = '已断开';
+
+        // 5秒后重连
+        setTimeout(connectWebSocket, 5000);
+      };
+
+      ws.onerror = (error) => {
+        addLog('WebSocket 错误', 'error');
+        console.error('WebSocket error:', error);
+      };
+
+      ws.onerror = (error) => {
+        addLog('WebSocket 错误', 'error');
+        console.error('WebSocket error:', error);
+      };
+    }
+
+    // 发送消息到代理服务器
+    function sendToAgent(text) {
+      const message = { type: 'chat', text };
+
+      if (wsConnected && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(message));
+      } else {
+        // 加入队列，等连接成功后发送
+        messageQueue.push(message);
+        addLog('消息已加入队列，等待连接...', 'detected');
+      }
+    }
+
+    // Apply expression
+    async function applyExpression(expr, source = 'manual') {
+      if (!model) return;
+
+      try {
+        model.expression('');
+        await new Promise(r => setTimeout(r, 50));
+        await model.expression(expr);
+        currentExpression = expr;
+
+        statusText.textContent = source === 'smart' ? `智能识别: ${expr}` : `表情: ${expr}`;
+
+        document.querySelectorAll('.expr-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.expr === expr);
+        });
+
+        addLog(`应用表情: ${expr} (${source})`, 'triggered');
+      } catch (e) {
+        console.error('表情切换失败:', e);
+      }
+    }
+
+    // Add message to chat
+    function addMessage(type, text, meta = null) {
+      const msg = document.createElement('div');
+      msg.className = `message ${type}`;
+
+      let metaHtml = '';
+      if (meta) {
+        metaHtml = `<div class="message-meta">
+          ${meta.emotion ? `<span class="emotion-tag">${meta.emotion}</span>` : ''}
+          <span>${meta.time || new Date().toLocaleTimeString()}</span>
+        </div>`;
+      }
+
+      msg.innerHTML = `
+        <div class="message-avatar">${type === 'user' ? '👤' : '🤖'}</div>
+        <div class="message-content">
+          ${text}
+          ${metaHtml}
+        </div>
+      `;
+      chatMessages.appendChild(msg);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Send message
+    async function sendMessage() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      chatInput.value = '';
+      addMessage('user', text, { time: new Date().toLocaleTimeString() });
+
+      // 发送到代理服务器
+      if (smartMode) {
+        if (!wsConnected) {
+          addMessage('system', '正在连接服务器，请稍候...', {
+            emotion: '等待',
+            time: new Date().toLocaleTimeString()
+          });
+        }
+        sendToAgent(text);
+      }
+    }
+
+    // Initialize Live2D
+    try {
+      if (typeof Live2DCubismCore === 'undefined') {
+        throw new Error('Cubism Core 未加载');
+      }
+
+      const PIXI = await import('https://esm.sh/pixi.js@6.5.10?bundle');
+      console.log('✅ PixiJS 加载成功:', PIXI.VERSION);
+
+      const { Live2DModel } = await import('https://esm.sh/pixi-live2d-display@0.4.0/cubism4?bundle&external=pixi.js');
+
+      const canvas = document.getElementById('live2d-canvas');
+
+      app = new PIXI.Application({
+        view: canvas,
+        resizeTo: canvas.parentElement,
+        backgroundColor: 0x1a1a2e,
+        backgroundAlpha: 1,
+        antialias: true,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
+        autoStart: false
+      });
+
+      model = await Live2DModel.from('yumi/yumi.model3.json', {
+        autoUpdate: false
+      });
+
+      app.stage.addChild(model);
+
+      model.anchor.set(0.5, 0.5);
+      model.x = app.screen.width / 2;
+      model.y = app.screen.height / 2;
+
+      const baseScale = Math.min(
+        app.screen.width / model.width,
+        app.screen.height / model.height
+      ) * 0.7;
+
+      // 缩放和镜头控制
+      let currentScale = baseScale;
+      let scaleMultiplier = 1.5; // 初始150%缩放
+      const minScale = baseScale * 0.3;
+      const maxScale = baseScale * 3;
+
+      // 镜头位置（用于拖拽移动）
+      let cameraX = app.screen.width / 2;
+      let cameraY = app.screen.height * 0.7; // 初始位置向下移动20%
+      let isDragging = false;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let cameraStartX = 0;
+      let cameraStartY = 0;
+
+      // 应用缩放和位置
+      function updateModelTransform() {
+        model.scale.set(currentScale * scaleMultiplier);
+        model.x = cameraX;
+        model.y = cameraY;
+      }
+
+      updateModelTransform();
+
+      // Mouse tracking (只在非拖拽时启用)
+      let targetX = 0, targetY = 0;
+      let currentX = 0, currentY = 0;
+
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+
+        // 拖拽移动镜头
+        if (isDragging) {
+          const dx = e.clientX - dragStartX;
+          const dy = e.clientY - dragStartY;
+          cameraX = cameraStartX + dx;
+          cameraY = cameraStartY + dy;
+          updateModelTransform();
+          return;
+        }
+
+        // 正常的鼠标跟踪（相对于中心点）
+        targetX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+        targetY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+      });
+
+      // 滚轮缩放
+      canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomSpeed = 0.001;
+        const newMultiplier = scaleMultiplier - e.deltaY * zoomSpeed;
+        scaleMultiplier = Math.max(minScale / currentScale, Math.min(maxScale / currentScale, newMultiplier));
+        updateModelTransform();
+        if (zoomLevelDisplay) zoomLevelDisplay.textContent = `缩放: ${Math.round(scaleMultiplier * 100)}%`;
+      }, { passive: false });
+
+      // 拖拽移动
+      canvas.addEventListener('mousedown', (e) => {
+        if (e.button === 0) { // 左键
+          isDragging = true;
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          cameraStartX = cameraX;
+          cameraStartY = cameraY;
+          canvas.style.cursor = 'grabbing';
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          canvas.style.cursor = 'default';
+        }
+      });
+
+      // 双击重置视角
+      canvas.addEventListener('dblclick', () => {
+        scaleMultiplier = 1.5;
+        cameraX = app.screen.width / 2;
+        cameraY = app.screen.height * 0.7; // 向下移动20%
+        updateModelTransform();
+        if (zoomLevelDisplay) zoomLevelDisplay.textContent = `缩放: 150%`;
+        addLog('视角已重置 (150%, 下移20%)', 'triggered');
+      });
+
+      // Animation loop
+      let lastTime = performance.now();
+      function animate() {
+        const now = performance.now();
+        const deltaMS = now - lastTime;
+        lastTime = now;
+
+        model.update(deltaMS);
+
+        const smoothFactor = 0.1;
+        currentX += (targetX - currentX) * smoothFactor;
+        currentY += (targetY - currentY) * smoothFactor;
+
+        if (model.internalModel?.coreModel) {
+          const core = model.internalModel.coreModel;
+          try {
+            core.setParameterValueById('ParamEyeBallX', currentX);
+            core.setParameterValueById('ParamEyeBallY', -currentY);
+            core.setParameterValueById('ParamAngleX', currentX * 30);
+            core.setParameterValueById('ParamAngleY', -currentY * 20);
+          } catch (err) {}
+        }
+
+        app.renderer.render(app.stage);
+        requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+
+      // Expression buttons
+      document.querySelectorAll('.expr-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          applyExpression(btn.dataset.expr, 'manual');
+        });
+      });
+
+      // Smart toggle
+      document.getElementById('smart-toggle').addEventListener('click', function() {
+        smartMode = !smartMode;
+        this.classList.toggle('active', smartMode);
+        addLog(`智能表情: ${smartMode ? '开启' : '关闭'}`);
+      });
+
+      // Quick actions
+      document.getElementById('btn-reset').addEventListener('click', () => {
+        model.expression('');
+        currentExpression = '';
+        statusText.textContent = '等待指令...';
+        document.querySelectorAll('.expr-btn').forEach(b => b.classList.remove('active'));
+        addLog('表情已重置');
+      });
+
+      document.getElementById('btn-random').addEventListener('click', () => {
+        const exprs = ['爱心眼', '黑脸', '泪汪汪', '猫猫嘴', '拿话筒', '星星眼'];
+        const random = exprs[Math.floor(Math.random() * exprs.length)];
+        applyExpression(random, 'random');
+      });
+
+      document.getElementById('btn-debug').addEventListener('click', () => {
+        console.log('Model:', model);
+        addLog('调试信息已输出到控制台');
+      });
+
+      // Camera controls
+      const zoomLevelDisplay = document.getElementById('zoom-level');
+
+      function updateZoomDisplay() {
+        zoomLevelDisplay.textContent = `缩放: ${Math.round(scaleMultiplier * 100)}%`;
+      }
+
+      document.getElementById('btn-zoom-in').addEventListener('click', () => {
+        scaleMultiplier = Math.min(maxScale / currentScale, scaleMultiplier * 1.2);
+        updateModelTransform();
+        updateZoomDisplay();
+        addLog(`放大: ${Math.round(scaleMultiplier * 100)}%`, 'normal');
+      });
+
+      document.getElementById('btn-zoom-out').addEventListener('click', () => {
+        scaleMultiplier = Math.max(minScale / currentScale, scaleMultiplier / 1.2);
+        updateModelTransform();
+        updateZoomDisplay();
+        addLog(`缩小: ${Math.round(scaleMultiplier * 100)}%`, 'normal');
+      });
+
+      document.getElementById('btn-camera-reset').addEventListener('click', () => {
+        scaleMultiplier = 1.5; // 重置到150%
+        cameraX = app.screen.width / 2;
+        cameraY = app.screen.height * 0.7; // 向下移动20%
+        updateModelTransform();
+        updateZoomDisplay();
+        addLog('镜头已重置 (150%, 下移20%)', 'triggered');
+      });
+
+      // 预设缩放按钮
+      document.getElementById('btn-zoom-50').addEventListener('click', () => {
+        scaleMultiplier = 0.5;
+        updateModelTransform();
+        updateZoomDisplay();
+        addLog('缩放: 50%', 'normal');
+      });
+
+      document.getElementById('btn-zoom-100').addEventListener('click', () => {
+        scaleMultiplier = 1.0;
+        updateModelTransform();
+        updateZoomDisplay();
+        addLog('缩放: 100%', 'normal');
+      });
+
+      document.getElementById('btn-zoom-150').addEventListener('click', () => {
+        scaleMultiplier = 1.5;
+        updateModelTransform();
+        updateZoomDisplay();
+        addLog('缩放: 150%', 'normal');
+      });
+
+      document.getElementById('btn-zoom-200').addEventListener('click', () => {
+        scaleMultiplier = 2.0;
+        updateModelTransform();
+        updateZoomDisplay();
+        addLog('缩放: 200%', 'normal');
+      });
+
+      // Chat
+      document.getElementById('btn-send').addEventListener('click', sendMessage);
+      chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+      });
+
+      loading.classList.add('hidden');
+      statusText.textContent = '连接中...';
+      addLog('Agent System 初始化完成 (Kimi LLM 后端代理版)');
+
+      // 初始化 WebSocket 连接
+      connectWebSocket();
+
+    } catch (error) {
+      console.error('加载失败:', error);
+      loading.innerHTML = `
+        <div style="color: #ef4444; text-align: center;">
+          <p style="font-weight: 600; margin-bottom: 8px;">❌ 加载失败</p>
+          <p style="font-size: 12px;">${error.message}</p>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
