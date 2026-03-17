@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent Console</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .console-container {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      grid-template-rows: 1fr auto;
+      height: 100vh;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    /* Live2D Scene */
+    .live2d-scene {
+      grid-row: 1 / 3;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #live2d-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .scene-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      padding: 10px 20px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 30px;
+      backdrop-filter: blur(10px);
+    }
+
+    .scene-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+
+    .scene-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .scene-btn.active {
+      background: #4a9eff;
+    }
+
+    /* Chat Panel */
+    .chat-panel {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-header h2 {
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .emotion-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .emotion-badge.happy {
+      background: rgba(255, 200, 100, 0.3);
+    }
+
+    .emotion-badge.sad {
+      background: rgba(100, 150, 255, 0.3);
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      animation: messageIn 0.3s ease;
+    }
+
+    @keyframes messageIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.1);
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-input-area {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      gap: 10px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .chat-input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .send-btn, .voice-btn {
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 50%;
+      background: #4a9eff;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .send-btn:hover, .voice-btn:hover {
+      background: #3a8eef;
+      transform: scale(1.05);
+    }
+
+    .voice-btn.recording {
+      background: #ff4a4a;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    /* Info Panel */
+    .info-panel {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .info-section h3 {
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 14px;
+    }
+
+    .info-item:last-child {
+      border-bottom: none;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-indicator.online {
+      background: #4ade80;
+    }
+
+    .status-indicator.offline {
+      background: #f87171;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    @media (max-width: 1024px) {
+      .console-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr auto;
+      }
+
+      .live2d-scene {
+        grid-row: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="console-container">
+    <!-- Live2D Scene -->
+    <div class="live2d-scene">
+      <canvas id="live2d-canvas"></canvas>
+      <div class="scene-controls">
+        <button class="scene-btn active" data-expression="neutral">Neutral</button>
+        <button class="scene-btn" data-expression="happy">Happy</button>
+        <button class="scene-btn" data-expression="sad">Sad</button>
+        <button class="scene-btn" data-expression="surprised">Surprised</button>
+      </div>
+    </div>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <h2>💬 Chat</h2>
+        <span class="emotion-badge" id="emotion-badge">neutral</span>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <!-- Messages will be inserted here -->
+      </div>
+      <div class="chat-input-area">
+        <input type="text" class="chat-input" id="chat-input" placeholder="Type a message...">
+        <button class="voice-btn" id="voice-btn">🎤</button>
+        <button class="send-btn" id="send-btn">➤</button>
+      </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel">
+      <div class="info-section">
+        <h3>System Status</h3>
+        <div class="info-item">
+          <span>Live2D</span>
+          <span><span class="status-indicator online"></span>Ready</span>
+        </div>
+        <div class="info-item">
+          <span>Audio</span>
+          <span><span class="status-indicator online"></span>Active</span>
+        </div>
+        <div class="info-item">
+          <span>Pipeline</span>
+          <span><span class="status-indicator online"></span>Running</span>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>Memory</h3>
+        <div class="info-item">
+          <span>Messages</span>
+          <span id="message-count">0</span>
+        </div>
+        <div class="info-item">
+          <span>Session Time</span>
+          <span id="session-time">00:00</span>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>Actions</h3>
+        <div class="info-item">
+          <button class="scene-btn" onclick="window.location.reload()">🔄 Reload</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { ConsoleBridge } from '../services/console-bridge.js';
+
+    // Initialize console bridge
+    const bridge = new ConsoleBridge({
+      canvasId: 'live2d-canvas',
+      enableLive2D: true,
+      enableAudio: true,
+      enablePipeline: true,
+    });
+
+    // UI Elements
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const voiceBtn = document.getElementById('voice-btn');
+    const emotionBadge = document.getElementById('emotion-badge');
+    const messageCount = document.getElementById('message-count');
+    const expressionBtns = document.querySelectorAll('[data-expression]');
+
+    let isRecording = false;
+
+    // Initialize
+    async function init() {
+      try {
+        await bridge.initialize();
+        console.log('Console initialized');
+
+        // Listen for messages
+        bridge.onMessage((message) => {
+          addMessage(message);
+        });
+
+        // Listen for state changes
+        bridge.onStateChange((state) => {
+          updateUI(state);
+        });
+      } catch (error) {
+        console.error('Failed to initialize console:', error);
+      }
+    }
+
+    // Add message to chat
+    function addMessage(message) {
+      const messageEl = document.createElement('div');
+      messageEl.className = `message ${message.role}`;
+      messageEl.textContent = message.content;
+      chatMessages.appendChild(messageEl);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Update UI
+    function updateUI(state) {
+      emotionBadge.textContent = state.currentEmotion;
+      emotionBadge.className = `emotion-badge ${state.currentEmotion}`;
+      messageCount.textContent = state.messages.length;
+
+      if (state.isRecording) {
+        voiceBtn.classList.add('recording');
+      } else {
+        voiceBtn.classList.remove('recording');
+      }
+    }
+
+    // Send message
+    async function sendMessage() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      chatInput.value = '';
+      await bridge.sendMessage(text);
+    }
+
+    // Toggle voice input
+    async function toggleVoice() {
+      if (isRecording) {
+        bridge.stopVoiceInput();
+        isRecording = false;
+      } else {
+        try {
+          await bridge.startVoiceInput();
+          isRecording = true;
+        } catch (error) {
+          console.error('Failed to start voice input:', error);
+        }
+      }
+    }
+
+    // Event listeners
+    sendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+    voiceBtn.addEventListener('click', toggleVoice);
+
+    // Expression buttons
+    expressionBtns.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const expression = btn.dataset.expression;
+        await bridge.setExpression(expression);
+
+        expressionBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // Initialize
+    init();
+  </script>
+</body>
+</html>
