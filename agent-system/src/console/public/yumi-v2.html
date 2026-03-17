@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent System - Yumi Live2D</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      height: 100vh;
+      gap: 20px;
+      padding: 20px;
+    }
+    .canvas-area {
+      background: rgba(255,255,255,0.03);
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #live2d-canvas { width: 100%; height: 100%; }
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 100;
+      padding: 40px;
+      text-align: center;
+    }
+    .loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #4a9eff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .controls-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      overflow-y: auto;
+    }
+    .panel {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .panel h3 {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .expression-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .expr-btn {
+      padding: 10px 8px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 12px;
+    }
+    .expr-btn:hover, .expr-btn.active { background: #4a9eff; }
+    .status-pill {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .error-box {
+      background: rgba(244, 67, 54, 0.2);
+      border: 1px solid rgba(244, 67, 54, 0.5);
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 13px;
+      max-width: 500px;
+    }
+    .debug-log {
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-family: monospace;
+      text-align: left;
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      max-width: 500px;
+    }
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="canvas-area">
+      <canvas id="live2d-canvas"></canvas>
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span id="status-text">初始化中...</span>
+      </div>
+      <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <p id="loading-text">加载中...</p>
+        <div class="debug-log" id="debug-log"></div>
+      </div>
+    </div>
+
+    <div class="controls-panel">
+      <div class="panel">
+        <h3>🎭 表情控制</h3>
+        <div class="expression-grid">
+          <button class="expr-btn" data-expr="爱心眼">❤️ 爱心</button>
+          <button class="expr-btn" data-expr="黑脸">⬛ 黑脸</button>
+          <button class="expr-btn" data-expr="泪汪汪">🥺 泪汪汪</button>
+          <button class="expr-btn" data-expr="猫猫嘴">😺 猫猫</button>
+          <button class="expr-btn" data-expr="拿话筒">🎤 话筒</button>
+          <button class="expr-btn" data-expr="星星眼">✨ 星星</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>⚠️ 故障排查</h3>
+        <div style="font-size: 12px; line-height: 1.6; opacity: 0.8;">
+          <p>如果加载失败:</p>
+          <ol style="margin-left: 16px; margin-top: 8px;">
+            <li>打开浏览器控制台 (F12)</li>
+            <li>查看 Console 错误信息</li>
+            <li>检查网络请求状态</li>
+          </ol>
+          <p style="margin-top: 10px;">
+            <a href="simple-demo.html" style="color: #4a9eff;">使用简化版 (无需 Live2D)</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 加载依赖 -->
+  <script src="./lib/pixi.min.js"></script>
+
+  <script>
+    const debugLog = document.getElementById('debug-log');
+    const loadingText = document.getElementById('loading-text');
+
+    function log(msg) {
+      console.log(msg);
+      debugLog.innerHTML += msg + '<br>';
+    }
+
+    // 检查 PIXI
+    log('检查 PIXI...');
+    if (typeof PIXI === 'undefined') {
+      log('❌ PIXI 未定义');
+      showError('PIXI 未加载');
+    } else {
+      log('✅ PIXI 已加载, 版本: ' + PIXI.VERSION);
+
+      // 动态加载 Live2D
+      const script = document.createElement('script');
+      script.src = './lib/index.min.js';
+      script.onload = function() {
+        log('✅ pixi-live2d-display 加载完成');
+        initLive2D();
+      };
+      script.onerror = function() {
+        log('❌ 加载 index.min.js 失败');
+        showError('无法加载 pixi-live2d-display');
+      };
+      document.head.appendChild(script);
+    }
+
+    function showError(msg) {
+      loadingText.textContent = '加载失败';
+      document.getElementById('loading').innerHTML = `
+        <div class="error-box">
+          <p><strong>❌ ${msg}</strong></p>
+          <div class="debug-log">${debugLog.innerHTML}</div>
+        </div>
+        <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; border: none; border-radius: 8px; background: #4a9eff; color: white; cursor: pointer;">
+          重新加载
+        </button>
+      `;
+    }
+
+    async function initLive2D() {
+      try {
+        loadingText.textContent = '检查 Live2D...';
+
+        if (!PIXI.live2d || !PIXI.live2d.Live2DModel) {
+          log('❌ PIXI.live2d.Live2DModel 不存在');
+          log('PIXI.live2d: ' + JSON.stringify(Object.keys(PIXI.live2d || {})));
+          showError('Live2D 插件未正确初始化');
+          return;
+        }
+
+        log('✅ Live2DModel 可用');
+        loadingText.textContent = '创建应用...';
+
+        const canvas = document.getElementById('live2d-canvas');
+        const app = new PIXI.Application({
+          view: canvas,
+          resizeTo: canvas.parentElement,
+          backgroundAlpha: 0,
+          antialias: true,
+          resolution: window.devicePixelRatio || 1,
+          autoDensity: true
+        });
+
+        log('✅ PIXI 应用创建成功');
+        loadingText.textContent = '加载 Yumi 模型...';
+
+        const model = await PIXI.live2d.Live2DModel.from('../../yumi/yumi.model3.json');
+        log('✅ 模型加载成功');
+
+        app.stage.addChild(model);
+        model.anchor.set(0.5, 0.5);
+        model.x = app.screen.width / 2;
+        model.y = app.screen.height / 2;
+
+        const scale = Math.min(
+          app.screen.width / model.width,
+          app.screen.height / model.height
+        ) * 0.7;
+        model.scale.set(scale);
+
+        // 鼠标跟踪
+        canvas.addEventListener('mousemove', (e) => {
+          if (!model) return;
+          const rect = canvas.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width * 2 - 1;
+          const y = (e.clientY - rect.top) / rect.height * 2 - 1;
+          model.focus(x, -y);
+        });
+
+        // 完成
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('status-text').textContent = 'Yumi 已就绪';
+
+        // 绑定表情按钮
+        document.querySelectorAll('.expr-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const expr = btn.dataset.expr;
+            model.expression(expr);
+            document.getElementById('status-text').textContent = '表情: ' + expr;
+            document.querySelectorAll('.expr-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+          });
+        });
+
+      } catch (error) {
+        log('❌ 错误: ' + error.message);
+        showError('初始化失败: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

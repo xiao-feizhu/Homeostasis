@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent System - Live2D Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 30px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 20px;
+    }
+
+    /* Avatar Section */
+    .avatar-section {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 500px;
+    }
+
+    #avatar-canvas {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #avatar-svg {
+      width: 300px;
+      height: 350px;
+      filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
+    }
+
+    .status-bar {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Controls Section */
+    .controls-section {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .panel h3 {
+      font-size: 14px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Expression Buttons */
+    .expression-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .expr-btn {
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .expr-btn:hover {
+      background: rgba(255,255,255,0.2);
+      transform: translateY(-2px);
+    }
+
+    .expr-btn.active {
+      background: #4a9eff;
+    }
+
+    .expr-btn .emoji {
+      font-size: 20px;
+    }
+
+    /* Chat */
+    .chat-messages {
+      height: 150px;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .message {
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      border-radius: 12px;
+      font-size: 13px;
+      max-width: 80%;
+    }
+
+    .message.user {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin-left: auto;
+    }
+
+    .message.assistant {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .chat-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      outline: none;
+    }
+
+    .chat-input::placeholder {
+      color: rgba(255,255,255,0.4);
+    }
+
+    .send-btn, .voice-btn {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 50%;
+      background: #4a9eff;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .send-btn:hover, .voice-btn:hover {
+      background: #3a8eef;
+      transform: scale(1.05);
+    }
+
+    .voice-btn.recording {
+      background: #ff4a4a;
+      animation: recording-pulse 1s infinite;
+    }
+
+    @keyframes recording-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    /* Info Panel */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 13px;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .metric-bar {
+      width: 100px;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .metric-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.5s;
+    }
+
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎭 AI Agent System</h1>
+    <p class="subtitle">Live2D 虚拟形象 + 情感系统演示</p>
+
+    <div class="main-grid">
+      <!-- Avatar Section -->
+      <div class="avatar-section">
+        <div id="avatar-canvas">
+          <svg id="avatar-svg" viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="hairGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#4a5568"/>
+                <stop offset="100%" style="stop-color:#2d3748"/>
+              </linearGradient>
+              <linearGradient id="skinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#fde8d4"/>
+                <stop offset="100%" style="stop-color:#f5d0b5"/>
+              </linearGradient>
+            </defs>
+
+            <!-- 身体 -->
+            <path d="M120,220 Q150,240 180,220 L180,300 L120,300 Z" fill="#f5d0b5"/>
+            <ellipse cx="150" cy="320" rx="60" ry="30" fill="#e2e8f0"/>
+
+            <!-- 后发 -->
+            <path id="back-hair" d="M80,150 Q60,200 70,250 Q90,280 120,260 Q150,270 180,260 Q210,280 230,250 Q240,200 220,150 Q200,80 150,70 Q100,80 80,150" fill="url(#hairGrad)"/>
+
+            <!-- 脸型 -->
+            <path id="face" d="M100,120 Q95,180 120,210 Q150,230 180,210 Q205,180 200,120 Q195,60 150,55 Q105,60 100,120" fill="url(#skinGrad)"/>
+
+            <!-- 腮红 -->
+            <ellipse id="cheek-l" cx="115" cy="160" rx="12" ry="8" fill="#ffb6c1" opacity="0"/>
+            <ellipse id="cheek-r" cx="185" cy="160" rx="12" ry="8" fill="#ffb6c1" opacity="0"/>
+
+            <!-- 眉毛 -->
+            <path id="brow-l" d="M105,115 Q120,110 135,115" stroke="#4a5568" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path id="brow-r" d="M165,115 Q180,110 195,115" stroke="#4a5568" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+            <!-- 眼睛 -->
+            <g id="eyes">
+              <g id="eye-l">
+                <ellipse cx="120" cy="140" rx="18" ry="22" fill="white"/>
+                <circle cx="120" cy="140" r="12" fill="#4a5568"/>
+                <circle cx="124" cy="136" r="5" fill="white"/>
+                <path id="lid-l" d="M100,120 Q120,115 140,120 L140,100 L100,100 Z" fill="#f5d0b5" opacity="0"/>
+              </g>
+              <g id="eye-r">
+                <ellipse cx="180" cy="140" rx="18" ry="22" fill="white"/>
+                <circle cx="180" cy="140" r="12" fill="#4a5568"/>
+                <circle cx="184" cy="136" r="5" fill="white"/>
+                <path id="lid-r" d="M160,120 Q180,115 200,120 L200,100 L160,100 Z" fill="#f5d0b5" opacity="0"/>
+              </g>
+            </g>
+
+            <!-- 鼻子 -->
+            <path d="M150,165 Q148,172 152,172" stroke="#d4a574" stroke-width="2" fill="none" opacity="0.6"/>
+
+            <!-- 嘴巴 -->
+            <path id="mouth" d="M130,185 Q150,195 170,185" stroke="#d4846a" stroke-width="3" fill="#ffb6c1" stroke-linecap="round"/>
+
+            <!-- 前发 -->
+            <path d="M80,120 Q90,80 120,75 Q150,70 150,90 Q150,70 180,75 Q210,80 220,120 Q210,100 190,95 Q170,90 150,100 Q130,90 110,95 Q90,100 80,120" fill="url(#hairGrad)"/>
+
+            <!-- 装饰 -->
+            <circle cx="95" cy="100" r="8" fill="#f472b6"/>
+            <circle cx="95" cy="100" r="5" fill="#fce7f3"/>
+          </svg>
+        </div>
+
+        <div class="status-bar">
+          <span class="status-dot"></span>
+          <span id="status-text">系统就绪 - 等待输入</span>
+        </div>
+      </div>
+
+      <!-- Controls Section -->
+      <div class="controls-section">
+        <!-- Expression Control -->
+        <div class="panel">
+          <h3>🎭 表情控制</h3>
+          <div class="expression-grid">
+            <button class="expr-btn active" data-expr="neutral">
+              <span class="emoji">😐</span> 中性
+            </button>
+            <button class="expr-btn" data-expr="happy">
+              <span class="emoji">😊</span> 开心
+            </button>
+            <button class="expr-btn" data-expr="sad">
+              <span class="emoji">😢</span> 悲伤
+            </button>
+            <button class="expr-btn" data-expr="surprised">
+              <span class="emoji">😲</span> 惊讶
+            </button>
+            <button class="expr-btn" data-expr="angry">
+              <span class="emoji">😠</span> 生气
+            </button>
+            <button class="expr-btn" data-expr="thinking">
+              <span class="emoji">🤔</span> 思考
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat -->
+        <div class="panel">
+          <h3>💬 对话</h3>
+          <div class="chat-messages" id="chat-messages"></div>
+          <div class="chat-input-group">
+            <input type="text" class="chat-input" id="chat-input" placeholder="输入消息...">
+            <button class="voice-btn" id="voice-btn">🎤</button>
+            <button class="send-btn" id="send-btn">➤</button>
+          </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="panel">
+          <h3>📊 系统状态</h3>
+          <div class="info-row">
+            <span>Live2D</span>
+            <span style="color: #4ade80;">✓ 运行中</span>
+          </div>
+          <div class="info-row">
+            <span>Audio</span>
+            <span style="color: #4ade80;">✓ 就绪</span>
+          </div>
+          <div class="info-row">
+            <span>当前表情</span>
+            <span id="current-expr">neutral</span>
+          </div>
+          <div class="info-row">
+            <span>消息数</span>
+            <span id="msg-count">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Avatar Controller
+    class AvatarController {
+      constructor() {
+        this.currentExpr = 'neutral';
+        this.isRecording = false;
+        this.messageCount = 0;
+
+        this.expressions = {
+          neutral: { browAngle: 0, browY: 0, eyeScale: 1, mouth: 'M130,185 Q150,195 170,185', cheek: 0 },
+          happy: { browAngle: -0.3, browY: 0.2, eyeScale: 0.85, mouth: 'M130,185 Q150,210 170,185', cheek: 0.4 },
+          sad: { browAngle: 0.5, browY: -0.3, eyeScale: 0.7, mouth: 'M130,195 Q150,180 170,195', cheek: 0 },
+          surprised: { browAngle: -0.2, browY: 0.6, eyeScale: 1.1, mouth: 'M140,185 Q150,210 160,185 Q150,220 140,185', cheek: 0 },
+          angry: { browAngle: -0.6, browY: 0.3, eyeScale: 0.9, mouth: 'M135,190 Q150,185 165,190', cheek: 0.2 },
+          thinking: { browAngle: 0.2, browY: 0, eyeScale: 0.6, mouth: 'M140,190 Q150,185 155,192', cheek: 0 }
+        };
+
+        this.init();
+      }
+
+      init() {
+        this.startBlinking();
+        this.startBreathing();
+        this.bindEvents();
+      }
+
+      setExpression(name) {
+        const expr = this.expressions[name];
+        if (!expr) return;
+
+        this.currentExpr = name;
+
+        // Update eyebrows
+        const browL = document.getElementById('brow-l');
+        const browR = document.getElementById('brow-r');
+        const yOffset = 115 - expr.browY * 15;
+        const rotate = expr.browAngle * 20;
+        browL.setAttribute('transform', `rotate(${rotate}, 120, ${yOffset}) translate(0, ${expr.browY * 10})`);
+        browR.setAttribute('transform', `rotate(${-rotate}, 180, ${yOffset}) translate(0, ${expr.browY * 10})`);
+
+        // Update eyes
+        const eyeScale = expr.eyeScale;
+        document.getElementById('eye-l').setAttribute('transform', `scale(1, ${eyeScale}) translate(0, ${140 * (1 - eyeScale)})`);
+        document.getElementById('eye-r').setAttribute('transform', `scale(1, ${eyeScale}) translate(0, ${140 * (1 - eyeScale)})`);
+
+        // Update mouth
+        document.getElementById('mouth').setAttribute('d', expr.mouth);
+
+        // Update cheeks
+        document.getElementById('cheek-l').setAttribute('opacity', expr.cheek);
+        document.getElementById('cheek-r').setAttribute('opacity', expr.cheek);
+
+        // Update UI
+        document.getElementById('current-expr').textContent = name;
+        document.getElementById('status-text').textContent = `当前表情: ${name}`;
+      }
+
+      startBlinking() {
+        const blink = async () => {
+          if (this.isRecording) {
+            setTimeout(blink, 3000);
+            return;
+          }
+
+          document.getElementById('lid-l').setAttribute('opacity', '1');
+          document.getElementById('lid-r').setAttribute('opacity', '1');
+
+          await new Promise(r => setTimeout(r, 150));
+
+          document.getElementById('lid-l').setAttribute('opacity', '0');
+          document.getElementById('lid-r').setAttribute('opacity', '0');
+
+          setTimeout(blink, 3000 + Math.random() * 2000);
+        };
+        setTimeout(blink, 2000);
+      }
+
+      startBreathing() {
+        let time = 0;
+        const breathe = () => {
+          time += 0.03;
+          const scale = 1 + Math.sin(time) * 0.005;
+          const y = Math.sin(time) * 1.5;
+          document.getElementById('face').setAttribute('transform', `scale(${scale}) translate(${150 * (1 - scale)}, ${150 * (1 - scale) + y})`);
+          requestAnimationFrame(breathe);
+        };
+        breathe();
+      }
+
+      addMessage(text, role) {
+        const container = document.getElementById('chat-messages');
+        const msg = document.createElement('div');
+        msg.className = `message ${role}`;
+        msg.textContent = text;
+        container.appendChild(msg);
+        container.scrollTop = container.scrollHeight;
+
+        this.messageCount++;
+        document.getElementById('msg-count').textContent = this.messageCount;
+
+        // Auto response
+        if (role === 'user') {
+          setTimeout(() => {
+            const responses = {
+              happy: ['太好了！', '真为你高兴！😊'],
+              sad: ['别难过，我在这里。', '抱抱你 🤗'],
+              neutral: ['我明白了。', '继续说...'],
+              surprised: ['哇！真的吗？', '太神奇了！'],
+              thinking: ['让我想想...', '嗯，有意思...']
+            };
+            const expr = this.currentExpr;
+            const resps = responses[expr] || responses.neutral;
+            const resp = resps[Math.floor(Math.random() * resps.length)];
+            this.addMessage(resp, 'assistant');
+          }, 1000);
+        }
+      }
+
+      bindEvents() {
+        // Expression buttons
+        document.querySelectorAll('.expr-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.expr-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.setExpression(btn.dataset.expr);
+          });
+        });
+
+        // Send button
+        document.getElementById('send-btn').addEventListener('click', () => {
+          const input = document.getElementById('chat-input');
+          if (input.value.trim()) {
+            this.addMessage(input.value.trim(), 'user');
+            input.value = '';
+          }
+        });
+
+        // Enter key
+        document.getElementById('chat-input').addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            document.getElementById('send-btn').click();
+          }
+        });
+
+        // Voice button
+        const voiceBtn = document.getElementById('voice-btn');
+        voiceBtn.addEventListener('click', () => {
+          this.isRecording = !this.isRecording;
+          voiceBtn.classList.toggle('recording', this.isRecording);
+
+          if (this.isRecording) {
+            document.getElementById('status-text').textContent = '🎤 正在录音...';
+            // Simulate voice input
+            setTimeout(() => {
+              this.isRecording = false;
+              voiceBtn.classList.remove('recording');
+              document.getElementById('status-text').textContent = '系统就绪';
+              this.addMessage('你好，我是语音输入', 'user');
+            }, 3000);
+          } else {
+            document.getElementById('status-text').textContent = '系统就绪';
+          }
+        });
+      }
+    }
+
+    // Initialize
+    const avatar = new AvatarController();
+  </script>
+</body>
+</html>
