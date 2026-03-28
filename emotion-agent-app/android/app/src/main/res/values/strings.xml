@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EmotionAgent</string>
+    <string name="title_activity_main">EmotionAgent</string>
+    <string name="package_name">com.emotionagent.app</string>
+    <string name="custom_url_scheme">com.emotionagent.app</string>
+</resources>

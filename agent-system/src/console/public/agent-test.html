@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent System - 完整功能测试</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #0f0f1a;
+      --bg-secondary: #1a1a2e;
+      --bg-tertiary: #252542;
+      --bg-hover: #2d2d54;
+      --accent-primary: #3b82f6;
+      --accent-secondary: #60a5fa;
+      --accent-success: #10b981;
+      --accent-warning: #f59e0b;
+      --accent-error: #ef4444;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border-color: rgba(255,255,255,0.1);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      height: 60px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--accent-success);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* Main Layout */
+    .main-container {
+      display: grid;
+      grid-template-columns: 1fr 400px 380px;
+      height: calc(100vh - 60px);
+      margin-top: 60px;
+    }
+
+    /* Live2D Area */
+    .avatar-section {
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .avatar-header {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      z-index: 10;
+    }
+
+    .avatar-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+    }
+
+    .avatar-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .avatar-status {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .avatar-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    #live2d-canvas {
+      flex: 1;
+      width: 100%;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: rgba(0,0,0,0.8);
+      z-index: 50;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Chat Section */
+    .chat-section {
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .chat-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      display: flex;
+      gap: 12px;
+      max-width: 90%;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .message.user .message-avatar {
+      background: var(--accent-primary);
+    }
+
+    .message-content {
+      padding: 12px 16px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .message.user .message-content {
+      background: var(--accent-primary);
+    }
+
+    .chat-input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 8px 12px;
+      outline: none;
+    }
+
+    .chat-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .btn-send {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent-primary);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-send:hover {
+      background: var(--accent-secondary);
+    }
+
+    /* Control Panel */
+    .control-section {
+      background: var(--bg-secondary);
+      overflow-y: auto;
+    }
+
+    .panel {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .panel-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .panel-header:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .panel-content {
+      padding: 0 20px 20px;
+    }
+
+    /* Expression Grid */
+    .expression-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .expr-btn {
+      padding: 12px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .expr-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent-primary);
+    }
+
+    .expr-btn.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    .expr-icon {
+      font-size: 20px;
+    }
+
+    /* Motion List */
+    .motion-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .motion-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .motion-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .motion-name {
+      font-size: 13px;
+    }
+
+    .motion-btn {
+      padding: 4px 10px;
+      border: none;
+      border-radius: 4px;
+      background: var(--accent-primary);
+      color: white;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .action-btn {
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 12px;
+    }
+
+    .action-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* System Status */
+    .status-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+    }
+
+    .status-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .status-value {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--accent-success);
+    }
+
+    .status-value.warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--accent-warning);
+    }
+
+    /* Range Slider */
+    .slider-control {
+      margin-bottom: 16px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .slider {
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--bg-tertiary);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      cursor: pointer;
+    }
+
+    /* Responsive */
+    @media (max-width: 1400px) {
+      .main-container {
+        grid-template-columns: 1fr 350px 320px;
+      }
+    }
+
+    @media (max-width: 1200px) {
+      .main-container {
+        grid-template-columns: 1fr 300px;
+      }
+      .control-section {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+      .chat-section {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">Agent System</div>
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        <span>系统运行中</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-icon" title="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 17.66l-4.24 4.24M23 12h-6m-6 0H1m20.24 4.24l-4.24-4.24M6.34 6.34L2.1 2.1"></path>
+        </svg>
+      </button>
+      <button class="btn-icon" title="全屏">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    <!-- Live2D Avatar Section -->
+    <section class="avatar-section">
+      <div class="avatar-header">
+        <div class="avatar-info">
+          <div>
+            <div class="avatar-name">Yumi</div>
+            <div class="avatar-status" id="avatar-status">等待指令...</div>
+          </div>
+        </div>
+        <div class="avatar-controls">
+          <button class="btn-icon" id="btn-mic" title="语音输入">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+          </button>
+          <button class="btn-icon" id="btn-camera" title="相机">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <canvas id="live2d-canvas"></canvas>
+
+      <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <p>正在初始化 Live2D...</p>
+      </div>
+    </section>
+
+    <!-- Chat Section -->
+    <section class="chat-section">
+      <div class="chat-header">
+        <span class="chat-title">对话测试</span>
+        <div class="chat-actions">
+          <button class="btn-icon" title="清空对话">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="chat-messages">
+        <div class="message">
+          <div class="message-avatar">🤖</div>
+          <div class="message-content">
+            你好！我是 Yumi，你的 AI 助手。试试跟我聊天，或者使用右侧面板测试我的表情和动作！
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="input-wrapper">
+          <input type="text" class="chat-input" id="chat-input" placeholder="输入消息测试对话...">
+          <button class="btn-send" id="btn-send">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Control Panel -->
+    <section class="control-section">
+      <!-- Expressions -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🎭 表情控制</span>
+        </div>
+        <div class="panel-content">
+          <div class="expression-grid">
+            <button class="expr-btn" data-expr="爱心眼">
+              <span class="expr-icon">❤️</span>
+              <span>爱心</span>
+            </button>
+            <button class="expr-btn" data-expr="黑脸">
+              <span class="expr-icon">⬛</span>
+              <span>黑脸</span>
+            </button>
+            <button class="expr-btn" data-expr="泪汪汪">
+              <span class="expr-icon">🥺</span>
+              <span>泪汪汪</span>
+            </button>
+            <button class="expr-btn" data-expr="猫猫嘴">
+              <span class="expr-icon">😺</span>
+              <span>猫猫</span>
+            </button>
+            <button class="expr-btn" data-expr="拿话筒">
+              <span class="expr-icon">🎤</span>
+              <span>话筒</span>
+            </button>
+            <button class="expr-btn" data-expr="星星眼">
+              <span class="expr-icon">✨</span>
+              <span>星星</span>
+            </button>
+          </div>
+          <button class="action-btn" id="reset-expr" style="margin-top: 12px; width: 100%;">
+            ↩️ 重置表情
+          </button>
+        </div>
+      </div>
+
+      <!-- Motions -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🎬 动作测试</span>
+        </div>
+        <div class="panel-content">
+          <div class="motion-list">
+            <div class="motion-item">
+              <span class="motion-name">待机 (Idle)</span>
+              <button class="motion-btn" data-motion="Idle">播放</button>
+            </div>
+            <div class="motion-item">
+              <span class="motion-name">点头 (Nod)</span>
+              <button class="motion-btn" data-motion="Nod">播放</button>
+            </div>
+            <div class="motion-item">
+              <span class="motion-name">摇头 (Shake)</span>
+              <button class="motion-btn" data-motion="Shake">播放</button>
+            </div>
+            <div class="motion-item">
+              <span class="motion-name">挥手 (Wave)</span>
+              <button class="motion-btn" data-motion="Wave">播放</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parameters -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">⚙️ 参数调节</span>
+        </div>
+        <div class="panel-content">
+          <div class="slider-control">
+            <div class="slider-label">
+              <span>头部跟随灵敏度</span>
+              <span id="sensitivity-value">50%</span>
+            </div>
+            <input type="range" class="slider" id="sensitivity" min="0" max="100" value="50">
+          </div>
+          <div class="slider-control">
+            <div class="slider-label">
+              <span>模型缩放</span>
+              <span id="scale-value">70%</span>
+            </div>
+            <input type="range" class="slider" id="scale" min="30" max="100" value="70">
+          </div>
+        </div>
+      </div>
+
+      <!-- System Status -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📊 系统状态</span>
+        </div>
+        <div class="panel-content">
+          <div class="status-grid">
+            <div class="status-item">
+              <span class="status-label">Live2D Core</span>
+              <span class="status-value">已连接</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">渲染引擎</span>
+              <span class="status-value">WebGL</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">FPS</span>
+              <span class="status-value" id="fps-value">60</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">加载状态</span>
+              <span class="status-value" id="load-status">完成</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">⚡ 快捷操作</span>
+        </div>
+        <div class="panel-content">
+          <div class="quick-actions">
+            <button class="action-btn" id="btn-blink">眨眼</button>
+            <button class="action-btn" id="btn-breath">呼吸动画</button>
+            <button class="action-btn" id="btn-track">鼠标跟随</button>
+            <button class="action-btn" id="btn-debug">调试信息</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Load Cubism Core -->
+  <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+
+  <script type="module">
+    // State
+    let model = null;
+    let app = null;
+    let trackingEnabled = true;
+    let sensitivity = 0.5;
+
+    const statusText = document.getElementById('avatar-status');
+    const loading = document.getElementById('loading');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+
+    try {
+      // Check Cubism Core
+      if (typeof Live2DCubismCore === 'undefined') {
+        throw new Error('Cubism Core 未加载');
+      }
+
+      // Load PixiJS 6.x (compatible with pixi-live2d-display 0.4.0)
+      const PIXI = await import('https://esm.sh/pixi.js@6.5.10?bundle');
+      console.log('✅ PixiJS 加载成功:', PIXI.VERSION);
+
+      // Load Live2D
+      const { Live2DModel } = await import('https://esm.sh/pixi-live2d-display@0.4.0/cubism4?bundle&external=pixi.js');
+      console.log('✅ Live2D 加载成功');
+
+      const canvas = document.getElementById('live2d-canvas');
+
+      // Create PixiJS App
+      app = new PIXI.Application({
+        view: canvas,
+        resizeTo: canvas.parentElement,
+        backgroundColor: 0x1a1a2e,
+        backgroundAlpha: 1,
+        antialias: true,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true
+      });
+
+      // Load Model
+      model = await Live2DModel.from('yumi/yumi.model3.json', {
+        autoUpdate: false
+      });
+
+      app.stage.addChild(model);
+
+      // Center and scale
+      model.anchor.set(0.5, 0.5);
+      model.x = app.screen.width / 2;
+      model.y = app.screen.height / 2;
+
+      const baseScale = Math.min(
+        app.screen.width / model.width,
+        app.screen.height / model.height
+      ) * 0.7;
+      model.scale.set(baseScale);
+
+      // Animation Loop
+      let targetX = 0, targetY = 0;
+      let currentX = 0, currentY = 0;
+
+      app.ticker.add(() => {
+        if (trackingEnabled) {
+          const smoothFactor = 0.1 * sensitivity;
+          currentX += (targetX - currentX) * smoothFactor;
+          currentY += (targetY - currentY) * smoothFactor;
+
+          const x = currentX;
+          const y = currentY;
+
+          if (model.focus) {
+            model.focus(x, -y);
+          }
+
+          if (model.internalModel && model.internalModel.coreModel) {
+            const core = model.internalModel.coreModel;
+            try {
+              core.setParameterValueById('ParamEyeBallX', x);
+              core.setParameterValueById('ParamEyeBallY', -y);
+              core.setParameterValueById('ParamAngleX', x * 30);
+              core.setParameterValueById('ParamAngleY', -y * 20);
+              core.setParameterValueById('ParamAngleZ', x * 10);
+              core.setParameterValueById('ParamBodyAngleX', x * 15);
+              core.setParameterValueById('ParamNeckAngleX', x * 20);
+            } catch (err) {}
+          }
+        }
+
+        model.update(app.ticker.deltaMS);
+      });
+
+      // Mouse Tracking
+      canvas.addEventListener('mousemove', (e) => {
+        if (!trackingEnabled) return;
+        const rect = canvas.getBoundingClientRect();
+        targetX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+        targetY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+      });
+
+      // Expression Controls
+      document.querySelectorAll('.expr-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const expr = btn.dataset.expr;
+          try {
+            model.expression('');
+            await new Promise(r => setTimeout(r, 50));
+            await model.expression(expr);
+            statusText.textContent = `表情: ${expr}`;
+            document.querySelectorAll('.expr-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            addMessage('system', `已切换表情: ${expr}`);
+          } catch (e) {
+            console.error('表情切换失败:', e);
+          }
+        });
+      });
+
+      // Reset Expression
+      document.getElementById('reset-expr').addEventListener('click', () => {
+        model.expression('');
+        statusText.textContent = '等待指令...';
+        document.querySelectorAll('.expr-btn').forEach(b => b.classList.remove('active'));
+        addMessage('system', '表情已重置');
+      });
+
+      // Motion Controls
+      document.querySelectorAll('.motion-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const motion = btn.dataset.motion;
+          statusText.textContent = `动作: ${motion}`;
+          addMessage('system', `播放动作: ${motion}`);
+        });
+      });
+
+      // Quick Actions
+      document.getElementById('btn-blink').addEventListener('click', () => {
+        if (model.internalModel?.coreModel) {
+          try {
+            model.internalModel.coreModel.setParameterValueById('ParamEyeOpenL', 0);
+            model.internalModel.coreModel.setParameterValueById('ParamEyeOpenR', 0);
+            setTimeout(() => {
+              model.internalModel.coreModel.setParameterValueById('ParamEyeOpenL', 1);
+              model.internalModel.coreModel.setParameterValueById('ParamEyeOpenR', 1);
+            }, 150);
+          } catch (e) {}
+        }
+      });
+
+      document.getElementById('btn-track').addEventListener('click', () => {
+        trackingEnabled = !trackingEnabled;
+        document.getElementById('btn-track').textContent = trackingEnabled ? '鼠标跟随 ✓' : '鼠标跟随 ✗';
+        statusText.textContent = trackingEnabled ? '鼠标跟随已开启' : '鼠标跟随已关闭';
+      });
+
+      document.getElementById('btn-debug').addEventListener('click', () => {
+        console.log('Model:', model);
+        console.log('Internal Model:', model.internalModel);
+        addMessage('system', '调试信息已输出到控制台');
+      });
+
+      // Sliders
+      document.getElementById('sensitivity').addEventListener('input', (e) => {
+        sensitivity = e.target.value / 100;
+        document.getElementById('sensitivity-value').textContent = `${e.target.value}%`;
+      });
+
+      document.getElementById('scale').addEventListener('input', (e) => {
+        const scale = e.target.value / 100;
+        model.scale.set(baseScale * scale / 0.7);
+        document.getElementById('scale-value').textContent = `${e.target.value}%`;
+      });
+
+      // Chat
+      function addMessage(type, text) {
+        const msg = document.createElement('div');
+        msg.className = `message ${type === 'user' ? 'user' : ''}`;
+        msg.innerHTML = `
+          <div class="message-avatar">${type === 'user' ? '👤' : '🤖'}</div>
+          <div class="message-content">${text}</div>
+        `;
+        chatMessages.appendChild(msg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function sendMessage() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        addMessage('user', text);
+        chatInput.value = '';
+
+        // Simulate response
+        setTimeout(() => {
+          const responses = [
+            '我收到了你的消息！',
+            '这是一个测试回复。',
+            '你可以试试点击右侧面板的表情按钮！',
+            '我正在监听你的输入...',
+            '有什么可以帮助你的吗？'
+          ];
+          const response = responses[Math.floor(Math.random() * responses.length)];
+          addMessage('system', response);
+          statusText.textContent = '正在回复...';
+          setTimeout(() => {
+            statusText.textContent = '等待指令...';
+          }, 2000);
+        }, 1000);
+      }
+
+      document.getElementById('btn-send').addEventListener('click', sendMessage);
+      chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+      });
+
+      // FPS Counter
+      let frameCount = 0;
+      let lastTime = performance.now();
+      app.ticker.add(() => {
+        frameCount++;
+        const now = performance.now();
+        if (now - lastTime >= 1000) {
+          document.getElementById('fps-value').textContent = frameCount;
+          frameCount = 0;
+          lastTime = now;
+        }
+      });
+
+      // Done
+      loading.classList.add('hidden');
+      statusText.textContent = '等待指令...';
+      document.getElementById('load-status').textContent = '完成';
+      console.log('✅ Agent Test UI 初始化完成');
+
+    } catch (error) {
+      console.error('加载失败:', error);
+      loading.innerHTML = `
+        <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); padding: 20px; border-radius: 10px; text-align: center;">
+          <p style="font-weight: 600; margin-bottom: 8px;">❌ 加载失败</p>
+          <p style="font-size: 12px; opacity: 0.8;">${error.message}</p>
+          <button onclick="location.reload()" style="margin-top: 12px; padding: 8px 16px; border: none; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; font-size: 12px;">
+            重新加载
+          </button>
+        </div>
+      `;
+      document.getElementById('load-status').textContent = '错误';
+      document.getElementById('load-status').classList.add('warning');
+    }
+  </script>
+</body>
+</html>

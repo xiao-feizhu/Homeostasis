@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yumi Live2D - Debug</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    #debug-log {
+      background: rgba(0,0,0,0.5);
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      max-height: 60vh;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      margin-top: 10px;
+    }
+    .success { color: #4ade80; }
+    .error { color: #f87171; }
+    .info { color: #60a5fa; }
+    .warning { color: #fbbf24; }
+    button {
+      margin: 10px 5px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background: #4a9eff;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    #canvas-container {
+      margin-top: 20px;
+      display: none;
+    }
+    #canvas {
+      border: 2px solid #4a9eff;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h2>🔧 Live2D 调试页面</h2>
+  <div>
+    <button onclick="checkFiles()">1. 检查文件</button>
+    <button onclick="testPixi()">2. 测试 PIXI</button>
+    <button onclick="testLive2D()">3. 测试 Live2D</button>
+    <button onclick="loadModel()" id="loadBtn" disabled>4. 加载模型</button>
+    <button onclick="clearLog()">清空日志</button>
+  </div>
+  <div id="debug-log"></div>
+  <div id="canvas-container">
+    <canvas id="canvas" width="800" height="600"></canvas>
+  </div>
+
+  <script>
+    const logEl = document.getElementById('debug-log');
+    let PIXI = null;
+    let Live2DModel = null;
+
+    function log(msg, type = 'info') {
+      const colorClass = type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'info';
+      logEl.innerHTML += `<span class="${colorClass}">${new Date().toLocaleTimeString()}: ${msg}</span>\n`;
+      console.log(msg);
+    }
+
+    function clearLog() {
+      logEl.innerHTML = '';
+    }
+
+    async function checkFiles() {
+      log('检查模型文件...');
+      const files = [
+        'yumi/yumi.model3.json',
+        'yumi/yumi.moc3',
+        'yumi/yumi.8192/texture_00.png'
+      ];
+
+      for (const file of files) {
+        try {
+          const res = await fetch(file, { method: 'HEAD' });
+          if (res.ok) {
+            log(`✅ ${file} - 存在`, 'success');
+          } else {
+            log(`❌ ${file} - 不存在 (${res.status})`, 'error');
+          }
+        } catch (e) {
+          log(`❌ ${file} - 错误: ${e.message}`, 'error');
+        }
+      }
+    }
+
+    async function testPixi() {
+      log('加载 PixiJS...');
+      try {
+        const module = await import('https://esm.sh/pixi.js@7.3.2');
+        PIXI = module;
+        log(`✅ PixiJS 加载成功`, 'success');
+        log(`   Application: ${typeof PIXI.Application}`, 'info');
+        log(`   版本: ${PIXI.VERSION || 'unknown'}`, 'info');
+      } catch (e) {
+        log(`❌ PixiJS 加载失败: ${e.message}`, 'error');
+      }
+    }
+
+    async function testLive2D() {
+      if (!PIXI) {
+        log('⚠️ 先加载 PixiJS', 'warning');
+        await testPixi();
+      }
+
+      log('加载 Live2D...');
+      try {
+        const module = await import('https://esm.sh/pixi-live2d-display@0.5.0-lts');
+        Live2DModel = module.Live2DModel;
+        log(`✅ Live2D 加载成功`, 'success');
+        log(`   Live2DModel: ${typeof Live2DModel}`, 'info');
+        document.getElementById('loadBtn').disabled = false;
+      } catch (e) {
+        log(`❌ Live2D 加载失败: ${e.message}`, 'error');
+        console.error(e);
+      }
+    }
+
+    async function loadModel() {
+      if (!PIXI || !Live2DModel) {
+        log('❌ 请先完成步骤 2 和 3', 'error');
+        return;
+      }
+
+      log('创建 PIXI 应用...');
+      try {
+        const canvas = document.getElementById('canvas');
+        document.getElementById('canvas-container').style.display = 'block';
+
+        const app = new PIXI.Application({
+          view: canvas,
+          width: 800,
+          height: 600,
+          backgroundAlpha: 0,
+          antialias: true
+        });
+        log('✅ PIXI 应用创建成功', 'success');
+
+        log('加载模型文件 yumi/yumi.model3.json...');
+        const model = await Live2DModel.from('yumi/yumi.model3.json', {
+          autoUpdate: true
+        });
+        log('✅ 模型加载成功', 'success');
+
+        app.stage.addChild(model);
+        model.anchor.set(0.5, 0.5);
+        model.x = 400;
+        model.y = 300;
+        model.scale.set(0.3);
+
+        log('✅ 模型显示完成', 'success');
+        log('提示: 尝试切换表情 model.expression("爱心眼")', 'info');
+
+        window.currentModel = model;
+
+      } catch (e) {
+        log(`❌ 错误: ${e.message}`, 'error');
+        log(`   堆栈: ${e.stack}`, 'error');
+        console.error(e);
+      }
+    }
+
+    // 自动检查文件
+    log('页面加载完成', 'info');
+    checkFiles();
+  </script>
+</body>
+</html>

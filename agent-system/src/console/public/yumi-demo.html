@@ -193,6 +193,9 @@
     </div>
   </div>
 
+  <!-- 加载 Cubism 4 Core (必须先加载) -->
+  <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+
   <script type="module">
     const loadingText = document.getElementById('loading-text');
     const progressFill = document.getElementById('progress-fill');
@@ -242,12 +245,21 @@
     }
 
     try {
+      // 检查 Cubism Core 是否加载
+      if (typeof Live2DCubismCore === 'undefined') {
+        throw new Error('Cubism Core 未加载，请检查网络连接');
+      }
+      console.log('✅ Cubism Core 已加载');
+
+      // 使用 esm.sh (和 yumi-working.html 相同的配置)
       loadingText.textContent = '正在加载 PIXI.js...';
-      const PIXI = await import('https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.mjs');
+      const PIXI = await import('https://esm.sh/pixi.js@6.5.10?bundle');
+      console.log('✅ PixiJS 加载成功:', PIXI.VERSION);
       progressFill.style.width = '30%';
 
       loadingText.textContent = '正在加载 Live2D 运行时...';
-      const { Live2DModel } = await import('https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.5.0-lts/dist/index.mjs');
+      const { Live2DModel } = await import('https://esm.sh/pixi-live2d-display@0.4.0?bundle&external=pixi.js');
+      console.log('✅ Live2D 加载成功');
       progressFill.style.width = '60%';
 
       clearInterval(waitInterval);
@@ -267,7 +279,7 @@
       progressFill.style.width = '80%';
       loadingText.textContent = '正在加载模型...';
 
-      const model = await Live2DModel.from('../../yumi/yumi.model3.json');
+      const model = await Live2DModel.from('yumi/yumi.model3.json');
       progressFill.style.width = '100%';
 
       app.stage.addChild(model);
@@ -284,10 +296,16 @@
       // 鼠标跟踪
       canvas.addEventListener('mousemove', (e) => {
         if (!model) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width * 2 - 1;
-        const y = (e.clientY - rect.top) / rect.height * 2 - 1;
-        model.focus(x, -y);
+        try {
+          const rect = canvas.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width * 2 - 1;
+          const y = (e.clientY - rect.top) / rect.height * 2 - 1;
+          if (model.focus) {
+            model.focus(x, -y);
+          }
+        } catch (err) {
+          console.error('鼠标跟踪错误:', err);
+        }
       });
 
       // 完成
@@ -296,9 +314,18 @@
 
       window.live2dModel = model;
       window.setExpression = (name) => {
-        model.expression(name);
-        statusText.textContent = `表情: ${name}`;
+        try {
+          model.expression(name);
+          statusText.textContent = `表情: ${name}`;
+          console.log('表情切换成功:', name);
+        } catch (e) {
+          console.error('表情切换失败:', e);
+          statusText.textContent = `表情切换失败: ${e.message}`;
+        }
       };
+
+      // 确保全局函数可用
+      console.log('Live2D 模型加载完成，可用的表情:', model.internalModel?.settings?.expressions || '无法获取');
 
     } catch (error) {
       clearInterval(waitInterval);
